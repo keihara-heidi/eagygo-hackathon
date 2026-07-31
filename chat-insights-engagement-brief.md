@@ -1,8 +1,6 @@
-# Challenge 02 — Main Brief
+# Challenge 2: Chat Insights / Engagement
 
-## Chat Insights & Engagement
-
-**How would you turn chat into more than a scroll of messages?**
+**Your mission is to answer... How would you turn chat into something more than a scroll of messages?**
 
 ## The Pitch
 
@@ -14,12 +12,12 @@ Chat is where a stream actually happens, but most of what’s said in it disappe
 
 Keep this simple and open. There’s no single right direction; insights and engagement are just a starting point. Use the KICK Public API docs as a guide for what’s possible with real chat data, and feel free to mock any data you need.
 
-Think about:
+## Think about
 
-- Would you build for the **streamer**—insights such as what chat is feeling, what’s trending, and who’s showing up—or for the **viewer**—engagement such as polls, predictions, reactions, or mini-games? Either direction is fair game.
-- What would the feedback loop look like—streamer sees something, and viewers see something back?
-- What would you pull from chat to make this work—message volume, sentiment, keywords, emotes, or specific commands?
-- How do you keep it simple enough that it adds to the stream instead of getting in the way?
+- [ ] Would you build for the **streamer**—insights such as what chat is feeling, what’s trending, and who’s showing up—or for the **viewer**—engagement such as polls, predictions, reactions, or mini-games? Either direction is fair game.
+- [ ] What would the feedback loop look like—streamer sees something, and viewers see something back?
+- [ ] What would you pull from chat to make this work—message volume, sentiment, keywords, emotes, or specific commands?
+- [ ] How do you keep it simple enough that it adds to the stream instead of getting in the way?
 
 ## What Good Looks Like
 
