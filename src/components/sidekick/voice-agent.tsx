@@ -15,7 +15,6 @@ import {
   Mic,
   RefreshCcw,
   UserPlus,
-  Wrench,
   X,
 } from "lucide-react";
 
@@ -62,15 +61,7 @@ function Waveform({ active }: { active: boolean }) {
  * mic chip when idle, expanding into waveform + transcript + tool chip while
  * the voice session is live.
  */
-function WhisprPill({
-  transcript,
-  lastTool,
-  onNotice,
-}: {
-  transcript: TranscriptLine[];
-  lastTool: string | null;
-  onNotice: (text: string) => void;
-}) {
+function WhisprPill({ transcript }: { transcript: TranscriptLine[] }) {
   const { startSession, endSession } = useConversationControls();
   const { status } = useConversationStatus();
   const { isSpeaking } = useConversationMode();
@@ -92,11 +83,11 @@ function WhisprPill({
       return;
     }
     if (!AGENT_ID) {
-      onNotice("NEXT_PUBLIC_ELEVENLABS_AGENT_ID is not set");
+      console.warn("NEXT_PUBLIC_ELEVENLABS_AGENT_ID is not set");
       return;
     }
     await startSession({ agentId: AGENT_ID });
-  }, [connected, endSession, startSession, onNotice]);
+  }, [connected, endSession, startSession]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -144,15 +135,10 @@ function WhisprPill({
               >
                 {isSpeaking ? "speaking" : "listening"}
               </span>
-              {lastTool && (
-                <span className="ml-auto flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] text-primary">
-                  <Wrench className="size-2.5" /> {lastTool}
-                </span>
-              )}
               <button
                 type="button"
                 onClick={() => void toggle()}
-                className={cn("shrink-0 text-white/50 hover:text-white", !lastTool && "ml-auto")}
+                className="ml-auto shrink-0 text-white/50 hover:text-white"
               >
                 <X className="size-3.5" />
               </button>
@@ -226,14 +212,10 @@ function DemoTriggers() {
 export function VoiceAgent() {
   const events = useVoiceChatFeed();
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
-  const [lastTool, setLastTool] = useState<string | null>(null);
-
-  const pushNotice = useCallback((text: string) => setLastTool(text), []);
 
   const clientTools = useMemo(() => {
     const tool = (name: string, path: string, onCall?: () => void) => async () => {
       onCall?.();
-      setLastTool(name);
       const { data } = await apiClient.get<unknown>(path);
       return JSON.stringify(data);
     };
@@ -301,7 +283,7 @@ export function VoiceAgent() {
           </button>
 
           <VoiceChatOverlay events={events} />
-          <WhisprPill transcript={transcript} lastTool={lastTool} onNotice={pushNotice} />
+          <WhisprPill transcript={transcript} />
         </div>
       </div>
     </ConversationProvider>
