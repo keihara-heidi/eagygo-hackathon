@@ -2,13 +2,16 @@ import { NextResponse } from "next/server";
 
 import { getSidekickRuntime } from "@/lib/sidekick/runtime";
 import type { InsightEngine } from "@/lib/sidekick/insights";
+import { postVoiceBriefing } from "@/lib/sidekick/voice-briefing";
 
 export const dynamic = "force-dynamic";
 
 /**
- * The viewer copilot brain: routes a question to an intent, gathers data from
- * the insight engine, and reports the tool calls it made — the same tool
- * vocabulary the ElevenLabs voice agent uses.
+ * The single Sidekick brain. Routes a question to an intent, gathers data
+ * from the insight engine, and reports the tool calls it made. Serves both
+ * audiences: viewers (copilot widget) and the streamer (voice pipeline sends
+ * `audience: "streamer"`, which unlocks streamer intents and speech-friendly
+ * answers).
  */
 
 interface ToolCall {
@@ -151,6 +154,89 @@ function recallOrFlag(insights: InsightEngine, question: string): CopilotRespons
   };
 }
 
+// ---------------------------------------------------------------------------
+// Streamer (voice) intents — short, speech-friendly answers
+// ---------------------------------------------------------------------------
+
+function streamerVibe(insights: InsightEngine): CopilotResponse {
+  const vibe = insights.vibe();
+  const trending = insights.trending();
+  const topWord = trending.words[0];
+  const answer = `${vibe.description}${topWord ? ` Chat's big topic right now: ${topWord.word}.` : ""}`;
+  return {
+    intent: "streamer_vibe",
+    answer,
+    tool_calls: [
+      {
+        tool: "get_chat_vibe",
+        request: "GET /api/insights/vibe",
+        summary: `${vibe.vibe} · ${vibe.messages_per_minute} msg/min`,
+      },
+      {
+        tool: "get_trending",
+        request: "GET /api/insights/trending",
+        summary: topWord ? `top word ${topWord.word}` : "quiet",
+      },
+    ],
+  };
+}
+
+function streamerQuestions(insights: InsightEngine): CopilotResponse {
+  const pending = insights.questions().filter((cluster) => !cluster.answered);
+  const top = pending[0];
+  // Fire the viewer-visible 🎙 chat line; never block the spoken answer on it.
+  void postVoiceBriefing().catch(() => {});
+  const answer = top
+    ? `Yes — ${pending.length === 1 ? "one big one" : `${pending.length} clusters`}. Most asked: ${top.representative} — ${top.count} people want to know. I've flagged it in chat; say answered when you've covered it.`
+    : "Nothing pressing — no repeated questions in the queue right now.";
+  return {
+    intent: "streamer_questions",
+    answer,
+    tool_calls: [
+      {
+        tool: "get_recent_questions",
+        request: "GET /api/insights/questions",
+        summary: top ? `${pending.length} pending · top asked ${top.count}x` : "queue empty",
+      },
+    ],
+  };
+}
+
+function streamerWhoIsNew(insights: InsightEngine): CopilotResponse {
+  const chatters = insights.chatters();
+  const parts: string[] = [];
+  parts.push(`${chatters.active_last_10m} people chatting in the last ten minutes.`);
+  if (chatters.first_timers.length > 0) {
+    parts.push(
+      `First-timers: ${chatters.first_timers.slice(0, 3).join(", ")}${chatters.first_timers.length > 3 ? ` and ${chatters.first_timers.length - 3} more` : ""} — worth a shoutout.`,
+    );
+  }
+  if (chatters.recent_followers.length > 0) {
+    parts.push(`${chatters.recent_followers.length} new followers recently.`);
+  }
+  if (chatters.notable.length > 0) parts.push(chatters.notable[chatters.notable.length - 1] + ".");
+  return {
+    intent: "streamer_whos_new",
+    answer: parts.join(" "),
+    tool_calls: [
+      {
+        tool: "get_new_chatters",
+        request: "GET /api/insights/chatters",
+        summary: `${chatters.active_last_10m} active · ${chatters.first_timers.length} first-timers`,
+      },
+    ],
+  };
+}
+
+function streamerFallback(): CopilotResponse {
+  return {
+    intent: "help",
+    answer:
+      "I can tell you the chat vibe, what's trending, questions worth answering, or who's new. What do you want?",
+    tool_calls: [],
+  };
+}
+
 function fallback(): CopilotResponse {
   return {
     intent: "help",
@@ -165,12 +251,30 @@ export async function POST(request: Request) {
     question?: unknown;
     viewer?: unknown;
     auto?: unknown;
+    audience?: unknown;
   } | null;
   const question = typeof body?.question === "string" ? body.question.trim() : "";
   const viewer = typeof body?.viewer === "string" ? body.viewer : null;
   const auto = body?.auto === true;
+  const audience = body?.audience === "streamer" ? "streamer" : "viewer";
 
   const insights = getSidekickRuntime().insights;
+
+  if (audience === "streamer") {
+    if (/question|should i answer|what.*want to know|asking|queue/i.test(question)) {
+      return NextResponse.json(streamerQuestions(insights));
+    }
+    if (/vibe|mood|feeling|energy|chat (saying|doing|like)|how('| i)?s chat/i.test(question)) {
+      return NextResponse.json(streamerVibe(insights));
+    }
+    if (/who('| i)?s new|new (viewer|chatter|follower)|who (joined|showed|came)/i.test(question)) {
+      return NextResponse.json(streamerWhoIsNew(insights));
+    }
+    if (/trending|talking about|topic|going on|happening/i.test(question)) {
+      return NextResponse.json(streamerVibe(insights));
+    }
+    return NextResponse.json(question.length > 3 ? streamerVibe(insights) : streamerFallback());
+  }
 
   if (auto || /what('| i)?s (going on|happening)|catch me up|did i miss/i.test(question)) {
     return NextResponse.json(catchup(insights, auto ? viewer : null));
