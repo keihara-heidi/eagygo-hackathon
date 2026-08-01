@@ -10,6 +10,19 @@ export interface ConnectedKickStream {
   slug: string;
   url: string;
   connectedAt: string;
+  broadcasterUserId?: number;
+  title?: string;
+  isLive?: boolean;
+  viewerCount?: number;
+}
+
+interface ConnectKickStreamMetadata {
+  broadcasterUserId?: number;
+  slug?: string;
+  url?: string;
+  title?: string;
+  isLive?: boolean;
+  viewerCount?: number;
 }
 
 export type ConnectKickStreamResult =
@@ -32,6 +45,12 @@ function readStoredStream(): ConnectedKickStream | null {
             typeof parsed.connectedAt === "string"
               ? parsed.connectedAt
               : new Date().toISOString(),
+          ...(typeof parsed.broadcasterUserId === "number"
+            ? { broadcasterUserId: parsed.broadcasterUserId }
+            : {}),
+          ...(typeof parsed.title === "string" ? { title: parsed.title } : {}),
+          ...(typeof parsed.isLive === "boolean" ? { isLive: parsed.isLive } : {}),
+          ...(typeof parsed.viewerCount === "number" ? { viewerCount: parsed.viewerCount } : {}),
         }
       : null;
   } catch {
@@ -84,15 +103,24 @@ export function useConnectedKickStream() {
     };
   }, []);
 
-  const connect = useCallback((input: string): ConnectKickStreamResult => {
-    const parsed = parseKickStreamLink(input);
-    if (!parsed) return { ok: false, error: "Paste a Kick channel URL like https://kick.com/orbitfps" };
+  const connect = useCallback(
+    (input: string, metadata: ConnectKickStreamMetadata = {}): ConnectKickStreamResult => {
+      const parsed = parseKickStreamLink(input);
+      if (!parsed) return { ok: false, error: "Paste a Kick channel URL like https://kick.com/orbitfps" };
 
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-    setStream(parsed);
-    notifyStreamChanged();
-    return { ok: true, stream: parsed };
-  }, []);
+      const nextStream: ConnectedKickStream = {
+        ...parsed,
+        ...metadata,
+        slug: metadata.slug ?? parsed.slug,
+        url: metadata.url ?? parsed.url,
+      };
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextStream));
+      setStream(nextStream);
+      notifyStreamChanged();
+      return { ok: true, stream: nextStream };
+    },
+    [],
+  );
 
   const disconnect = useCallback(() => {
     window.localStorage.removeItem(STORAGE_KEY);

@@ -158,7 +158,16 @@ async function triggerDemo(scenario: "hype_spike" | "question_flood" | "new_view
 export default function StreamDashboardPage() {
   const queryClient = useQueryClient();
   const { stream: connectedStream } = useConnectedKickStream();
-  const { events, connectionState } = useKickStreamEvents({ maxEvents: 160 });
+  const streamEndpoint = useMemo(() => {
+    const broadcasterUserId = connectedStream?.broadcasterUserId;
+    return broadcasterUserId
+      ? `/api/stream?broadcasterUserId=${broadcasterUserId}`
+      : "/api/stream";
+  }, [connectedStream?.broadcasterUserId]);
+  const { events, connectionState } = useKickStreamEvents({
+    endpoint: streamEndpoint,
+    maxEvents: 160,
+  });
   const {
     messages: agentMessages,
     sendMessage: askAgent,

@@ -13,6 +13,10 @@ function parseSeq(value: string | null): number | undefined {
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
+function broadcasterUserIdFor(event: StampedEvent): number {
+  return event.event.payload.broadcaster.user_id;
+}
+
 /**
  * SSE feed of the stamped Kick event stream: backfill (last 50, or from
  * `?fromSeq=`) then live. Every frame carries `id: <seq>`, so EventSource
@@ -24,10 +28,17 @@ export function GET(request: NextRequest) {
 
   const explicitFromSeq = parseSeq(request.nextUrl.searchParams.get("fromSeq"));
   const lastEventId = parseSeq(request.headers.get("last-event-id"));
+  const broadcasterUserId = parseSeq(request.nextUrl.searchParams.get("broadcasterUserId"));
 
   const stream = new ReadableStream({
     start(controller) {
       const send = (event: StampedEvent) => {
+        if (
+          broadcasterUserId !== undefined &&
+          broadcasterUserIdFor(event) !== broadcasterUserId
+        ) {
+          return;
+        }
         controller.enqueue(
           encoder.encode(`id: ${event.seq}\ndata: ${JSON.stringify(event)}\n\n`),
         );
