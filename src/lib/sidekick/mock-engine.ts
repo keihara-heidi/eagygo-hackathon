@@ -88,7 +88,7 @@ export class MockEngine {
   private timer: ReturnType<typeof setInterval> | null = null;
   private pending: ReturnType<typeof setTimeout>[] = [];
   private hypeUntil = 0;
-  private intensity = 0.4;
+  private intensity = 0.15;
   private usedNewcomers = 0;
   private tickCount = 0;
 
