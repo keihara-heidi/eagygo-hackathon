@@ -30,12 +30,22 @@ import { useKickStreamEvents } from "@/hooks/use-kick-stream-events";
 import { useSidekickAgentChat } from "@/hooks/use-sidekick-agent-chat";
 import { apiClient } from "@/lib/api-client";
 import type { StampedEvent } from "@/lib/chat-engine/types";
-import type {
-  QuestionCluster,
-  StreamContext,
-} from "@/lib/sidekick/insights";
+import type { QuestionCluster } from "@/lib/sidekick/insights";
 
 type QuestionsResponse = { questions: QuestionCluster[] };
+
+type KickStreamDetailsResponse = {
+  stream: {
+    slug: string;
+    url: string;
+    broadcaster_user_id: number;
+    title: string;
+    category_name: string;
+    is_live: boolean;
+    viewer_count: number;
+    started_at: string | null;
+  };
+};
 
 type ChatLine = {
   id: string;
@@ -147,6 +157,13 @@ async function getInsight<T>(path: string): Promise<T> {
   return response.data;
 }
 
+function minutesSince(timestamp?: string | null) {
+  if (!timestamp) return null;
+  const startedAt = Date.parse(timestamp);
+  if (Number.isNaN(startedAt)) return null;
+  return Math.max(0, Math.floor((Date.now() - startedAt) / 60_000));
+}
+
 async function triggerDemo(scenario: "hype_spike" | "question_flood" | "new_viewer") {
   await fetch("/api/demo", {
     method: "POST",
@@ -175,16 +192,23 @@ export default function StreamDashboardPage() {
     isError: agentError,
   } = useSidekickAgentChat();
   const [agentQuestion, setAgentQuestion] = useState("");
+  const connectedSlug = connectedStream?.slug;
 
   const questionsQuery = useQuery({
     queryKey: ["insights", "questions"],
     queryFn: () => getInsight<QuestionsResponse>("/insights/questions"),
     refetchInterval: INSIGHT_REFETCH_MS,
   });
-  const contextQuery = useQuery({
-    queryKey: ["insights", "context"],
-    queryFn: () => getInsight<StreamContext>("/insights/context"),
-    refetchInterval: 10_000,
+  const streamDetailsQuery = useQuery({
+    queryKey: ["kick", "stream", connectedSlug],
+    enabled: connectedSlug !== undefined,
+    queryFn: () => {
+      if (!connectedSlug) throw new Error("No connected stream");
+      return getInsight<KickStreamDetailsResponse>(
+        `/kick/streams/${encodeURIComponent(connectedSlug)}`,
+      );
+    },
+    refetchInterval: 15_000,
   });
 
   const answerMutation = useMutation({
@@ -197,8 +221,21 @@ export default function StreamDashboardPage() {
   });
 
   const questions = questionsQuery.data?.questions ?? [];
-  const streamContext = contextQuery.data;
-  const streamer = connectedStream?.slug ?? streamContext?.streamer ?? "streamer";
+  const streamDetails = streamDetailsQuery.data?.stream;
+  const streamer = connectedStream?.slug ?? "streamer";
+  const streamTitle = streamDetails?.title ?? connectedStream?.title;
+  const viewerCount = streamDetails?.viewer_count ?? connectedStream?.viewerCount;
+  const uptimeMinutes = minutesSince(streamDetails?.started_at ?? connectedStream?.startedAt);
+  const isLive = streamDetails?.is_live ?? connectedStream?.isLive ?? false;
+  const streamSummary = connectedStream
+    ? [
+        streamTitle ?? `@${streamer}`,
+        typeof viewerCount === "number" ? `${viewerCount.toLocaleString()} viewers` : null,
+        uptimeMinutes !== null ? `${uptimeMinutes}m live` : isLive ? "live" : "offline",
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "Connect a KICK stream for live title and viewers.";
 
   const chatLines = useMemo(
     () =>
@@ -261,11 +298,7 @@ export default function StreamDashboardPage() {
                     <Sparkles className="size-4 text-primary" />
                     Question clusters
                   </CardTitle>
-                  <CardDescription>
-                    {streamContext
-                      ? `${streamContext.title} · ${streamContext.viewer_count.toLocaleString()} viewers · ${streamContext.uptime_minutes}m live`
-                      : "Repeated asks from the insight engine."}
-                  </CardDescription>
+                  <CardDescription>{streamSummary}</CardDescription>
                 </div>
                 <CardAction className="hidden items-center gap-1 sm:flex">
                   <Button size="xs" variant="outline" onClick={() => void triggerDemo("new_viewer")}>

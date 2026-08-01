@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { createKickClient } from "@/lib/kick/client";
+import { createKickAppClient } from "@/lib/kick/app-client";
 import { KICK_EVENT_TYPES } from "@/lib/kick/events";
 import { KickApiError } from "@/lib/kick/http";
-import { createOAuthClient } from "@/lib/kick/oauth";
 
 export const dynamic = "force-dynamic";
 
@@ -17,17 +16,6 @@ function normalizeSlug(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim().replace(/^@/, "");
   return SLUG_PATTERN.test(trimmed) ? trimmed : null;
-}
-
-async function createAppKickClient() {
-  const clientId = process.env.KICK_CLIENT_ID;
-  const clientSecret = process.env.KICK_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    throw new Error("KICK_CLIENT_ID and KICK_CLIENT_SECRET are required");
-  }
-
-  const token = await createOAuthClient({ clientId, clientSecret }).clientCredentials();
-  return createKickClient({ token: token.access_token });
 }
 
 export async function POST(request: Request) {
@@ -44,7 +32,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const client = await createAppKickClient();
+    const client = await createKickAppClient();
     const [channel] = await client.channels.list({ slug: [requestedSlug] });
     if (!channel) {
       return NextResponse.json({ error: `KICK channel @${requestedSlug} not found` }, { status: 404 });
@@ -75,8 +63,10 @@ export async function POST(request: Request) {
         url: `https://kick.com/${channel.slug}`,
         broadcaster_user_id: broadcasterUserId,
         title: channel.stream_title,
+        category_name: channel.category.name,
         is_live: stream?.is_live ?? false,
         viewer_count: stream?.viewer_count ?? 0,
+        started_at: stream?.start_time ?? null,
       },
       subscriptions: {
         existing: existing.length,

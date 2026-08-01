@@ -22,8 +22,10 @@ interface KickStreamConnectResponse {
     url: string;
     broadcaster_user_id: number;
     title: string;
+    category_name: string;
     is_live: boolean;
     viewer_count: number;
+    started_at: string | null;
   };
 }
 
@@ -58,8 +60,10 @@ export function KickStreamConnector({ className }: KickStreamConnectorProps) {
       );
       const result = connect(value, {
         broadcasterUserId: response.data.stream.broadcaster_user_id,
+        categoryName: response.data.stream.category_name,
         isLive: response.data.stream.is_live,
         slug: response.data.stream.slug,
+        startedAt: response.data.stream.started_at ?? undefined,
         title: response.data.stream.title,
         url: response.data.stream.url,
         viewerCount: response.data.stream.viewer_count,

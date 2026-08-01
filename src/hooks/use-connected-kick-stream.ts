@@ -12,8 +12,10 @@ export interface ConnectedKickStream {
   connectedAt: string;
   broadcasterUserId?: number;
   title?: string;
+  categoryName?: string;
   isLive?: boolean;
   viewerCount?: number;
+  startedAt?: string;
 }
 
 interface ConnectKickStreamMetadata {
@@ -21,8 +23,10 @@ interface ConnectKickStreamMetadata {
   slug?: string;
   url?: string;
   title?: string;
+  categoryName?: string;
   isLive?: boolean;
   viewerCount?: number;
+  startedAt?: string;
 }
 
 export type ConnectKickStreamResult =
@@ -49,8 +53,10 @@ function readStoredStream(): ConnectedKickStream | null {
             ? { broadcasterUserId: parsed.broadcasterUserId }
             : {}),
           ...(typeof parsed.title === "string" ? { title: parsed.title } : {}),
+          ...(typeof parsed.categoryName === "string" ? { categoryName: parsed.categoryName } : {}),
           ...(typeof parsed.isLive === "boolean" ? { isLive: parsed.isLive } : {}),
           ...(typeof parsed.viewerCount === "number" ? { viewerCount: parsed.viewerCount } : {}),
+          ...(typeof parsed.startedAt === "string" ? { startedAt: parsed.startedAt } : {}),
         }
       : null;
   } catch {
