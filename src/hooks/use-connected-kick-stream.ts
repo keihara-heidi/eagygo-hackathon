@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { isAxiosError } from "axios";
+
+import { apiClient } from "@/lib/api-client";
 
 const STORAGE_KEY = "sidekick.connectedKickStream";
 const CHANGE_EVENT = "sidekick.connectedKickStream.change";
@@ -10,18 +13,9 @@ export interface ConnectedKickStream {
   slug: string;
   url: string;
   connectedAt: string;
+  /** Resolved by /api/kick/connect when live webhooks are wired. */
   broadcasterUserId?: number;
-  title?: string;
-  categoryName?: string;
-  isLive?: boolean;
-  viewerCount?: number;
-  startedAt?: string;
-}
-
-interface ConnectKickStreamMetadata {
-  broadcasterUserId?: number;
-  slug?: string;
-  url?: string;
+  subscriptionIds?: string[];
   title?: string;
   categoryName?: string;
   isLive?: boolean;
@@ -51,6 +45,9 @@ function readStoredStream(): ConnectedKickStream | null {
               : new Date().toISOString(),
           ...(typeof parsed.broadcasterUserId === "number"
             ? { broadcasterUserId: parsed.broadcasterUserId }
+            : {}),
+          ...(Array.isArray(parsed.subscriptionIds)
+            ? { subscriptionIds: parsed.subscriptionIds }
             : {}),
           ...(typeof parsed.title === "string" ? { title: parsed.title } : {}),
           ...(typeof parsed.categoryName === "string" ? { categoryName: parsed.categoryName } : {}),
@@ -96,6 +93,19 @@ export function parseKickStreamLink(input: string): ConnectedKickStream | null {
   }
 }
 
+interface ConnectRouteResponse {
+  broadcaster_user_id: number;
+  channel: {
+    slug: string;
+    stream_title: string;
+    category: string;
+    is_live: boolean;
+    viewer_count: number;
+    started_at: string | null;
+  };
+  subscriptions: Array<{ subscription_id?: string }>;
+}
+
 export function useConnectedKickStream() {
   const [stream, setStream] = useState<ConnectedKickStream | null>(() => readStoredStream());
 
@@ -109,26 +119,46 @@ export function useConnectedKickStream() {
     };
   }, []);
 
-  const connect = useCallback(
-    (input: string, metadata: ConnectKickStreamMetadata = {}): ConnectKickStreamResult => {
-      const parsed = parseKickStreamLink(input);
-      if (!parsed) return { ok: false, error: "Paste a Kick channel URL like https://kick.com/orbitfps" };
+  const connect = useCallback(async (input: string): Promise<ConnectKickStreamResult> => {
+    const parsed = parseKickStreamLink(input);
+    if (!parsed) return { ok: false, error: "Paste a Kick channel URL like https://kick.com/orbitfps" };
 
-      const nextStream: ConnectedKickStream = {
+    let connected: ConnectedKickStream;
+    try {
+      const { data } = await apiClient.post<ConnectRouteResponse>("/kick/connect", {
+        slug: parsed.slug,
+      });
+      connected = {
         ...parsed,
-        ...metadata,
-        slug: metadata.slug ?? parsed.slug,
-        url: metadata.url ?? parsed.url,
+        slug: data.channel.slug,
+        url: `https://kick.com/${data.channel.slug}`,
+        broadcasterUserId: data.broadcaster_user_id,
+        subscriptionIds: data.subscriptions
+          .map((sub) => sub.subscription_id)
+          .filter((id): id is string => typeof id === "string"),
+        title: data.channel.stream_title,
+        categoryName: data.channel.category,
+        isLive: data.channel.is_live,
+        viewerCount: data.channel.viewer_count,
+        ...(data.channel.started_at ? { startedAt: data.channel.started_at } : {}),
       };
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextStream));
-      setStream(nextStream);
-      notifyStreamChanged();
-      return { ok: true, stream: nextStream };
-    },
-    [],
-  );
+    } catch (error) {
+      const message =
+        isAxiosError<{ error?: string }>(error) && error.response?.data?.error
+          ? error.response.data.error
+          : "Could not connect to KICK — try again";
+      return { ok: false, error: message };
+    }
+
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(connected));
+    setStream(connected);
+    notifyStreamChanged();
+    return { ok: true, stream: connected };
+  }, []);
 
   const disconnect = useCallback(() => {
+    // Fire-and-forget: local state clears even if the KICK API call fails.
+    apiClient.delete("/kick/connect").catch(() => {});
     window.localStorage.removeItem(STORAGE_KEY);
     setStream(null);
     notifyStreamChanged();

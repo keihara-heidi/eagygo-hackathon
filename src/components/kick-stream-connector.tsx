@@ -5,75 +5,30 @@ import { ExternalLink, PlugZap, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  parseKickStreamLink,
-  useConnectedKickStream,
-} from "@/hooks/use-connected-kick-stream";
-import { apiClient } from "@/lib/api-client";
+import { useConnectedKickStream } from "@/hooks/use-connected-kick-stream";
 import { cn } from "@/lib/utils";
 
 interface KickStreamConnectorProps {
   className?: string;
 }
 
-interface KickStreamConnectResponse {
-  stream: {
-    slug: string;
-    url: string;
-    broadcaster_user_id: number;
-    title: string;
-    category_name: string;
-    is_live: boolean;
-    viewer_count: number;
-    started_at: string | null;
-  };
-}
-
-function errorMessage(error: unknown) {
-  if (typeof error === "object" && error !== null && "response" in error) {
-    const response = (error as { response?: { data?: { error?: unknown } } }).response;
-    if (typeof response?.data?.error === "string") return response.data.error;
-  }
-  return error instanceof Error ? error.message : "Could not connect KICK stream";
-}
-
 export function KickStreamConnector({ className }: KickStreamConnectorProps) {
   const { stream, connect, disconnect } = useConnectedKickStream();
   const [value, setValue] = useState(stream?.url ?? "");
   const [error, setError] = useState<string | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [connecting, setConnecting] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const parsed = parseKickStreamLink(value);
-    if (!parsed) {
-      setError("Paste a Kick channel URL like https://kick.com/orbitfps");
-      return;
-    }
-
-    setIsConnecting(true);
+    if (connecting) return;
+    setConnecting(true);
     setError(null);
     try {
-      const response = await apiClient.post<KickStreamConnectResponse>(
-        "/kick/streams/connect",
-        { slug: parsed.slug },
-      );
-      const result = connect(value, {
-        broadcasterUserId: response.data.stream.broadcaster_user_id,
-        categoryName: response.data.stream.category_name,
-        isLive: response.data.stream.is_live,
-        slug: response.data.stream.slug,
-        startedAt: response.data.stream.started_at ?? undefined,
-        title: response.data.stream.title,
-        url: response.data.stream.url,
-        viewerCount: response.data.stream.viewer_count,
-      });
+      const result = await connect(value);
       setError(result.ok ? null : result.error);
       if (result.ok) setValue(result.stream.url);
-    } catch (caught) {
-      setError(errorMessage(caught));
     } finally {
-      setIsConnecting(false);
+      setConnecting(false);
     }
   }
 
@@ -138,8 +93,8 @@ export function KickStreamConnector({ className }: KickStreamConnectorProps) {
             placeholder="https://kick.com/channel"
             value={value}
           />
-          <Button className="h-8 shrink-0" disabled={isConnecting} type="submit">
-            {isConnecting ? "Connecting…" : "Connect"}
+          <Button className="h-8 shrink-0" disabled={connecting} type="submit">
+            {connecting ? "Connecting…" : "Connect"}
           </Button>
         </form>
       </div>
@@ -151,7 +106,7 @@ export function KickStreamConnector({ className }: KickStreamConnectorProps) {
           </p>
         ) : (
           <p className="text-muted-foreground">
-            Resolves the KICK channel, subscribes webhook events, then filters this dashboard.
+            Connecting subscribes to the channel&apos;s live chat via KICK webhooks; disconnect to return to the demo stream.
           </p>
         )}
       </div>
