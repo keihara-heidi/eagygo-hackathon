@@ -19,8 +19,8 @@ import { z } from "zod";
 import { getSidekickRuntime } from "@/lib/sidekick/runtime";
 
 const DEFAULT_MODELS = {
-  anthropic: "claude-haiku-4-5",
-  fireworks: "accounts/fireworks/models/kimi-k2p6",
+  anthropic: "claude-sonnet-4-6",
+  fireworks: "accounts/fireworks/models/glm-5p2",
 } as const;
 
 function resolveModel(): LanguageModel | null {
