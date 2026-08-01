@@ -39,6 +39,17 @@ interface ViewerChatProps {
   username?: string;
 }
 
+const INSIGHT_TOOL_LABELS: Record<string, string> = {
+  get_answered_questions: "Answered questions",
+  get_chat_vibe: "Chat mood",
+  get_new_chatters: "New chatters",
+  get_recent_chat: "Recent chat",
+  get_recent_questions: "Recent questions",
+  get_stream_context: "Stream details",
+  get_transcript: "Chat recap",
+  get_trending: "Trending topics",
+};
+
 
 function renderKickContent(content: string) {
   return content.split(/(\[emote:\d+:[^\]]+\])/g).map((part, index) => {
@@ -314,15 +325,37 @@ export function ViewerChat({ username }: ViewerChatProps) {
                               {message.role === "assistant" ? "Sidekick" : `You · @${viewerName}`}
                             </p>
                             {message.role === "assistant" && message.toolCalls?.length ? (
-                              <div className="space-y-1 border-l-2 border-primary bg-background px-3 py-2 font-mono text-[11px] text-muted-foreground">
-                                {message.toolCalls.map((toolCall) => (
-                                  <div key={`${message.id}-${toolCall.tool}`} className="flex gap-2">
-                                    <Wrench className="mt-0.5 size-3 shrink-0 text-primary" />
-                                    <span>
-                                      {toolCall.tool} → {toolCall.summary}
-                                    </span>
-                                  </div>
-                                ))}
+                              <div className="space-y-2 rounded-md border border-primary/20 bg-background/70 p-3">
+                                <p className="text-xs font-medium text-foreground">
+                                  Sidekick checked
+                                </p>
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                  {message.toolCalls.map((toolCall) => (
+                                    <div
+                                      key={`${message.id}-${toolCall.tool}`}
+                                      className="flex min-w-0 gap-2 rounded-md bg-muted/50 px-2.5 py-2"
+                                    >
+                                      <Wrench
+                                        aria-hidden="true"
+                                        className="mt-0.5 size-3.5 shrink-0 text-primary"
+                                      />
+                                      <div className="min-w-0">
+                                        <div className="flex flex-wrap items-baseline gap-x-2">
+                                          <p className="text-xs font-medium text-foreground">
+                                            {INSIGHT_TOOL_LABELS[toolCall.tool] ??
+                                              toolCall.tool.replaceAll("_", " ")}
+                                          </p>
+                                          <code className="text-[10px] text-muted-foreground/60">
+                                            {toolCall.tool}
+                                          </code>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                          {toolCall.summary}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
                             ) : null}
                             <p className="whitespace-pre-wrap text-sm leading-6">
@@ -366,11 +399,7 @@ export function ViewerChat({ username }: ViewerChatProps) {
             <p className="mt-2 text-center text-xs text-destructive" role="alert">
               Couldn&apos;t get a response. Try again.
             </p>
-          ) : (
-            <p className="mt-2 text-center text-[11px] text-muted-foreground">
-              Enter to send · Shift + Enter for new line
-            </p>
-          )}
+          ) : null}
         </div>
       </footer>
           </section>
