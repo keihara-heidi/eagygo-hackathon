@@ -12,17 +12,30 @@ export const maxDuration = 30;
 /** Recaps carry more ground to cover, so they get a slightly longer spoken budget. */
 const RECAP_PATTERN = /recap|catch me up|catch up|what did i miss|missed/i;
 
-/** Deterministic safety cap; avoids paying for a second LLM rewrite. */
-function capSpokenAnswer(text: string, question: string): string {
+const PROMPT_LEAK_PATTERN =
+  /\b(?:the user (?:wants|asked)|i need to|system prompt|instructions?|under \d+ words|never (?:add|speak)|let me (?:compress|rewrite)|output only)\b/i;
+
+/**
+ * Keeps model reasoning and prompt echoes away from TTS, then trims only at a
+ * complete sentence boundary. Returns null rather than speaking unsafe text.
+ */
+function cleanSpokenAnswer(text: string, question: string): string | null {
   const recap = RECAP_PATTERN.test(question);
-  const maxSentences = recap ? 3 : 2;
-  const maxWords = recap ? 70 : 45;
-  const cleaned = text.replace(/\s+/g, " ").trim();
-  const sentences = cleaned.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [cleaned];
-  const answer = sentences.slice(0, maxSentences).join(" ").trim();
-  const words = answer.split(/\s+/);
-  if (words.length <= maxWords) return answer;
-  return `${words.slice(0, maxWords).join(" ").replace(/[,:;—-]+$/, "")}.`;
+  const maxWords = recap ? 90 : 60;
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .map((part) => part.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const candidate =
+    [...paragraphs].reverse().find((part) => !PROMPT_LEAK_PATTERN.test(part)) ?? "";
+  if (!candidate || PROMPT_LEAK_PATTERN.test(candidate)) return null;
+
+  const words = candidate.split(/\s+/);
+  if (words.length <= maxWords) return candidate;
+
+  const window = words.slice(0, maxWords).join(" ");
+  const boundary = Math.max(window.lastIndexOf("."), window.lastIndexOf("!"), window.lastIndexOf("?"));
+  return boundary >= window.length * 0.45 ? window.slice(0, boundary + 1).trim() : null;
 }
 
 async function scriptedAnswer(question: string): Promise<string> {
@@ -62,8 +75,14 @@ export async function POST(request: Request) {
   if (agent) {
     try {
       const result = await agent.generate({ prompt: question });
-      answer = capSpokenAnswer(result.text, question);
-      source = "agent";
+      const cleaned = cleanSpokenAnswer(result.text, question);
+      if (cleaned) {
+        answer = cleaned;
+        source = "agent";
+      } else {
+        console.warn("[voice/answer] blocked malformed or prompt-leaking agent output");
+        answer = await scriptedAnswer(question);
+      }
     } catch (error) {
       console.warn("[voice/answer] agent failed, using scripted brain:", error);
       answer = await scriptedAnswer(question);

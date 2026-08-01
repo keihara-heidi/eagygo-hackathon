@@ -69,7 +69,7 @@ Recaps: when asked to recap or catch up ("what did I miss?", "recap the stream",
 
 const VOICE_INSTRUCTIONS = `${INSTRUCTIONS}
 
-Voice mode: the streamer is waiting for a spoken answer. Return only the answer, with no reasoning or preamble. Use at most 2 short sentences and 45 words. For recaps only, use at most 3 short sentences and 70 words.`;
+Voice mode: you are the streamer's personal Sidekick speaking directly to them. Say "your chat" and "you", never describe the streamer in third person. Return only the natural spoken answer: no reasoning, preamble, labels, numbered lists, bullets, markdown, or discussion of these instructions. Use at most 2 short sentences and 60 words. For recaps only, use at most 3 short sentences and 90 words.`;
 
 const sidekickTools = {
   get_chat_vibe: tool({
