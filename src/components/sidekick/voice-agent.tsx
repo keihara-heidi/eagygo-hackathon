@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ConversationProvider,
   useConversationControls,
@@ -18,19 +18,14 @@ import {
 } from "lucide-react";
 
 import { apiClient } from "@/lib/api-client";
-import { STREAMER } from "@/lib/sidekick/personas";
+import { VOICE_PRESET } from "@/lib/sidekick/voice-preset";
 import { cn } from "@/lib/utils";
 
 import { useVoiceChatFeed, VoiceChatOverlay } from "./voice-chat-column";
 
 const AGENT_ID = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
 
-/** Voice-demo presentation only — the pitch scenario is a phone IRL stream. */
-const IRL_PRESET = {
-  title: "IRL NIGHT MARKET WALK 🍜 — DAY 2",
-  location: "Tokyo, JP",
-  viewers: 1_243,
-};
+const AVATAR = `https://api.dicebear.com/9.x/thumbs/svg?seed=${VOICE_PRESET.streamer}`;
 
 interface TranscriptLine {
   id: string;
@@ -169,16 +164,62 @@ function WhisprPill({ transcript }: { transcript: TranscriptLine[] }) {
   );
 }
 
-/** Mock IRL camera feed: warm night-market gradient + phone camera chrome. */
+/**
+ * Live IRL camera feed from the device's front-facing camera, with the
+ * night-market gradient as fallback while permission is pending or denied.
+ */
 function CameraFeed() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [live, setLive] = useState(false);
+
+  useEffect(() => {
+    let stream: MediaStream | null = null;
+    let cancelled = false;
+
+    navigator.mediaDevices
+      ?.getUserMedia({ video: { facingMode: "user" }, audio: false })
+      .then((mediaStream) => {
+        if (cancelled) {
+          mediaStream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        stream = mediaStream;
+        const video = videoRef.current;
+        if (video) {
+          video.srcObject = mediaStream;
+          void video.play();
+          setLive(true);
+        }
+      })
+      .catch(() => setLive(false));
+
+    return () => {
+      cancelled = true;
+      stream?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
+
   return (
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_15%,rgba(252,182,69,0.25),transparent_45%),radial-gradient(circle_at_20%_80%,rgba(197,114,253,0.18),transparent_50%),linear-gradient(170deg,#1a1210_0%,#241a12_45%,#120d0f_100%)]">
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 pb-40">
-        <span className="text-4xl font-black uppercase tracking-tight text-white/10">
-          {STREAMER.username}
-        </span>
-        <span className="text-xs text-white/25">[ mock IRL camera feed — {IRL_PRESET.location} ]</span>
-      </div>
+      <video
+        ref={videoRef}
+        muted
+        playsInline
+        className={cn(
+          "absolute inset-0 size-full scale-x-[-1] object-cover transition-opacity duration-500",
+          live ? "opacity-100" : "opacity-0",
+        )}
+      />
+      {!live && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 pb-40">
+          <span className="text-4xl font-black uppercase tracking-tight text-white/10">
+            {VOICE_PRESET.streamer}
+          </span>
+          <span className="text-xs text-white/25">
+            [ camera feed — {VOICE_PRESET.location} ]
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -258,13 +299,13 @@ export function VoiceAgent() {
             <div className="flex items-center gap-2 rounded-full bg-black/40 py-1 pl-1 pr-3 backdrop-blur">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={STREAMER.profile_picture}
-                alt={STREAMER.username}
+                src={AVATAR}
+                alt={VOICE_PRESET.streamer}
                 className="size-7 rounded-full border border-primary"
               />
               <div className="leading-tight">
-                <p className="text-[11px] font-bold text-white">{STREAMER.username}</p>
-                <p className="max-w-40 truncate text-[9px] text-white/60">{IRL_PRESET.title}</p>
+                <p className="text-[11px] font-bold text-white">{VOICE_PRESET.streamer}</p>
+                <p className="max-w-40 truncate text-[9px] text-white/60">{VOICE_PRESET.title}</p>
               </div>
             </div>
             <div className="flex flex-col items-end gap-1.5">
@@ -273,7 +314,7 @@ export function VoiceAgent() {
                   LIVE
                 </span>
                 <span className="flex items-center gap-1 rounded bg-black/40 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur">
-                  <Eye className="size-2.5" /> {IRL_PRESET.viewers.toLocaleString()}
+                  <Eye className="size-2.5" /> {VOICE_PRESET.viewers.toLocaleString()}
                 </span>
               </div>
               <DemoTriggers />

@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 
 import { getInsights } from "@/lib/sidekick/insights";
 import { buildChatMessage } from "@/lib/sidekick/mock-engine";
-import { SIDEKICK_BOT, STREAMER } from "@/lib/sidekick/personas";
+import { SIDEKICK_BOT } from "@/lib/sidekick/personas";
 import { getSession } from "@/lib/sidekick/session";
+import { VOICE_PRESET } from "@/lib/sidekick/voice-preset";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ export async function POST() {
   session.ingest(
     buildChatMessage(
       SIDEKICK_BOT,
-      `🎙 ${STREAMER.username} just asked what chat wants to know — "${top.representative}" (asked ${top.count}×) is up next`,
+      `🎙 ${VOICE_PRESET.streamer} just asked what chat wants to know — "${top.representative}" (asked ${top.count}×) is up next`,
     ),
   );
   return NextResponse.json({ ok: true, posted: true });
