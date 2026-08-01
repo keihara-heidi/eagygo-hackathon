@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  ExternalLink,
   Gift,
   LogOut,
   MessageSquare,
@@ -154,6 +155,135 @@ function toKickActivity(wrapped: StampedEvent): KickActivity {
   }
 }
 
+function renderKickContent(content: string) {
+  return content.split(/(\[emote:\d+:[^\]]+\])/g).map((part, index) => {
+    const match = /^\[emote:(\d+):([^\]]+)\]$/.exec(part);
+    if (!match) return <span key={index}>{part}</span>;
+
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        key={index}
+        alt={match[2]}
+        className="mx-0.5 inline-block h-7 max-w-20 object-contain align-middle"
+        src={`https://files.kick.com/emotes/${match[1]}/fullsize`}
+      />
+    );
+  });
+}
+
+function KickChatLine({ wrapped }: { wrapped: StampedEvent }) {
+  if (wrapped.event.type !== "chat.message.sent") return null;
+
+  const { sender, content } = wrapped.event.payload;
+  const badges = sender.identity?.badges ?? [];
+
+  return (
+    <p className="text-sm leading-6 text-neutral-100">
+      <span className="mr-1 inline-flex items-center gap-1 align-middle">
+        {badges.slice(0, 2).map((badge, index) => (
+          <span
+            key={`${badge.type}-${index}`}
+            className="inline-flex min-w-5 items-center justify-center rounded bg-neutral-200 px-1 text-[10px] font-black leading-5 text-neutral-950"
+            title={badge.text}
+          >
+            {badge.count ?? badge.text.slice(0, 2)}
+          </span>
+        ))}
+        {sender.is_verified ? (
+          <span
+            aria-label="Verified"
+            className="inline-flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-black text-primary-foreground"
+          >
+            ✓
+          </span>
+        ) : null}
+      </span>
+      <span
+        className="font-bold"
+        style={{ color: sender.identity?.username_color ?? "#d1d5db" }}
+      >
+        {sender.username}
+      </span>
+      <span className="text-neutral-300">: </span>
+      {renderKickContent(content)}
+    </p>
+  );
+}
+
+function LiveKickChat({
+  events,
+  streamer,
+  connectionState,
+}: {
+  events: StampedEvent[];
+  streamer: string;
+  connectionState: KickStreamConnectionState;
+}) {
+  const chatEvents = events.filter(({ event }) => event.type === "chat.message.sent").slice(-80);
+  const live = connectionState === "live";
+
+  return (
+    <section
+      aria-label={`Live KICK chat for ${streamer}`}
+      className="flex min-h-0 flex-col bg-[#0b0b0b] text-white"
+    >
+      <header className="flex h-12 shrink-0 items-center border-b border-neutral-800 px-4">
+        <span className="font-brand text-xl leading-none text-primary">KICK</span>
+        <span aria-hidden="true" className="mx-3 h-5 w-px bg-neutral-700" />
+        <h1 className="text-sm font-semibold">Chat</h1>
+        <span className="ml-auto flex items-center gap-2 text-xs text-neutral-400">
+          <span
+            aria-hidden="true"
+            className={`size-2 rounded-full ${live ? "animate-pulse bg-primary" : "bg-neutral-600"}`}
+          />
+          @{streamer}
+        </span>
+      </header>
+
+      <div className="min-h-0 flex-1">
+        <MessageScrollerProvider>
+          <MessageScroller>
+            <MessageScrollerViewport>
+              <MessageScrollerContent
+                aria-live="polite"
+                className="justify-end gap-2 px-4 py-3"
+              >
+                {chatEvents.length === 0 ? (
+                  <div className="flex flex-1 items-center justify-center text-sm text-neutral-500">
+                    Waiting for live chat…
+                  </div>
+                ) : (
+                  chatEvents.map((wrapped, index) => (
+                    <MessageScrollerItem
+                      key={wrapped.seq}
+                      scrollAnchor={index === chatEvents.length - 1}
+                    >
+                      <KickChatLine wrapped={wrapped} />
+                    </MessageScrollerItem>
+                  ))
+                )}
+              </MessageScrollerContent>
+            </MessageScrollerViewport>
+          </MessageScroller>
+        </MessageScrollerProvider>
+      </div>
+
+      <footer className="shrink-0 border-t border-neutral-800 p-3">
+        <a
+          className="flex h-10 items-center rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm text-neutral-400 transition-colors hover:border-neutral-500 hover:text-white"
+          href={`https://kick.com/${streamer}`}
+          rel="noreferrer"
+          target="_blank"
+        >
+          <span className="truncate">Open @{streamer} chat on KICK</span>
+          <ExternalLink className="ml-auto size-4 shrink-0" />
+        </a>
+      </footer>
+    </section>
+  );
+}
+
 function KickActivityIcon({ kind }: { kind: KickActivityKind }) {
   const className = "size-3.5";
   switch (kind) {
@@ -261,7 +391,13 @@ export function ViewerChat({ username }: ViewerChatProps) {
   );
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-background">
+    <div className="grid h-dvh min-h-0 grid-rows-2 overflow-hidden bg-background">
+      <LiveKickChat
+        connectionState={connectionState}
+        events={visibleKickEvents}
+        streamer={streamer ?? "hanvee"}
+      />
+      <section className="flex min-h-0 flex-col overflow-hidden border-t border-primary/40">
       <header className="shrink-0 border-b bg-background">
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4 sm:px-6">
           <Link aria-label="Sidekick home" className="flex items-center" href="/">
@@ -426,6 +562,7 @@ export function ViewerChat({ username }: ViewerChatProps) {
           )}
         </div>
       </footer>
+      </section>
     </div>
   );
 }
