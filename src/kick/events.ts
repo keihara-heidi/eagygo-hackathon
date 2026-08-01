@@ -180,6 +180,7 @@ type MissingEventType = Exclude<KickEventType, (typeof KICK_EVENT_TYPES)[number]
 const _assertEventTypeListComplete: [MissingEventType] extends [never] ? true : never = true;
 
 export function isKickEventType(value: string): value is KickEventType {
+  void _assertEventTypeListComplete;
   return (KICK_EVENT_TYPES as readonly string[]).includes(value);
 }
 
