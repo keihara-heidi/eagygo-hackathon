@@ -49,4 +49,4 @@ Wrapper over the KICK Public API. Types mirror https://docs.kick.com verbatim (s
 - Keep explanations brief: pitch, pros/cons, "pick this if…"
 - Direction is chosen (Sidekick) — `SPEC.md` is the spec of record; no separate PRD planned
 - Demo path is sacred: when time runs low, cut features, never the demo script
-- Domain resources: `RESOURCES.md`; teaching material: `lessons/`, `reference/`
+- Domain resources: `RESOURCES.md`; teaching material: `reference/`
