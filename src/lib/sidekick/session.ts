@@ -7,6 +7,7 @@
 import type { KickEvent } from "@/lib/kick/events";
 
 import { persistEvent } from "./db-sink";
+import { getInsights } from "./insights";
 import { MockEngine } from "./mock-engine";
 import type { DemoAction, SidekickEvent } from "./types";
 
@@ -84,7 +85,10 @@ const globalForSession = globalThis as typeof globalThis & {
 
 export function getSession(): StreamSession {
   if (!globalForSession.sidekickSession) {
-    globalForSession.sidekickSession = new StreamSession();
+    const session = new StreamSession();
+    globalForSession.sidekickSession = session;
+    // Attach the insight engine before any event flows so nothing is missed.
+    getInsights(session);
   }
   return globalForSession.sidekickSession;
 }
