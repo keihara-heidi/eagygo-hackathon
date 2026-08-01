@@ -19,7 +19,6 @@ import { KickStreamConnector } from "@/components/kick-stream-connector";
 import { Button } from "@/components/ui/button";
 import {
   Message,
-  MessageAvatar,
   MessageContent,
   MessageGroup,
 } from "@/components/ui/message";
@@ -187,43 +186,37 @@ function LiveKickActivityBar({
   const live = connectionState === "live";
 
   return (
-    <section className="shrink-0 border-b border-border/60 bg-background/75 px-4 py-3 backdrop-blur sm:px-6">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 lg:flex-row lg:items-center">
-        <div className="flex min-w-40 items-center gap-3">
-          <span className="grid size-9 place-items-center rounded-2xl border border-primary/25 bg-primary/10 text-primary">
-            <Radio className={live ? "size-4 animate-pulse" : "size-4"} />
-          </span>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
-              Live KICK context
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {live ? `${eventCount} events loaded` : connectionState}
+    <section className="shrink-0 border-b bg-card">
+      <div className="mx-auto flex h-16 w-full max-w-6xl items-stretch overflow-hidden">
+        <div className="flex min-w-36 items-center gap-2 border-r px-4 sm:min-w-44 sm:px-6">
+          <span
+            aria-hidden="true"
+            className={`size-2 rounded-full ${live ? "animate-pulse bg-primary" : "bg-muted-foreground"}`}
+          />
+          <div className="min-w-0">
+            <p className="truncate text-xs font-semibold">Live context</p>
+            <p className="truncate text-[11px] text-muted-foreground">
+              {live ? `${eventCount} events` : connectionState}
             </p>
           </div>
         </div>
 
-        <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 lg:pb-0">
+        <div className="flex min-w-0 flex-1 divide-x divide-border overflow-x-auto">
           {activities.length === 0 ? (
-            <div className="min-w-64 rounded-2xl border border-dashed bg-card/60 px-3 py-2 text-xs text-muted-foreground">
-              Waiting for live chat, follows, subs, and Kicks…
-            </div>
+            <p className="flex min-w-64 items-center px-4 text-xs text-muted-foreground">
+              Waiting for chat, follows, subs, and Kicks…
+            </p>
           ) : (
             activities.map((activity) => (
-              <article
-                key={activity.id}
-                className="min-w-64 rounded-2xl border bg-card/85 px-3 py-2 shadow-sm shadow-black/10"
-              >
-                <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
-                  <KickActivityIcon kind={activity.kind} />
+              <article key={activity.id} className="min-w-56 px-4 py-2.5">
+                <div className="mb-0.5 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                  <span className="text-primary">
+                    <KickActivityIcon kind={activity.kind} />
+                  </span>
                   {activity.label}
                 </div>
-                <p className="truncate text-xs font-semibold text-foreground">
-                  {activity.title}
-                </p>
-                <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">
-                  {activity.detail}
-                </p>
+                <p className="truncate text-xs font-semibold">{activity.title}</p>
+                <p className="truncate text-[11px] text-muted-foreground">{activity.detail}</p>
               </article>
             ))
           )}
@@ -248,21 +241,20 @@ export function ViewerChat({ username }: ViewerChatProps) {
 
   return (
     <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-background">
-      <header className="shrink-0 border-b border-border/70 bg-background/90 backdrop-blur">
-        <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-3 px-4 sm:px-6">
-          <Link className="flex items-center gap-2 font-heading text-lg font-bold" href="/">
-            <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground">
-              <Sparkles className="size-4" />
-            </span>
-            Sidekick
+      <header className="shrink-0 border-b bg-background">
+        <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4 sm:px-6">
+          <Link aria-label="Sidekick home" className="flex items-center" href="/">
+            <span className="font-brand text-2xl leading-none text-primary">KICK</span>
+            <span aria-hidden="true" className="mx-3 h-5 w-px bg-border" />
+            <span className="text-sm font-semibold">Sidekick</span>
           </Link>
-          <span className="hidden text-xs text-muted-foreground sm:inline">Viewer chat</span>
+          <span className="hidden text-xs text-muted-foreground sm:inline">Viewer copilot</span>
 
           <div className="ml-auto flex items-center gap-2">
-            <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
+            <div className="hidden items-center gap-2 text-xs text-muted-foreground md:flex">
               <span
                 aria-hidden="true"
-                className={`size-1.5 rounded-full ${streamContext.isSuccess ? "bg-primary" : "bg-muted-foreground"}`}
+                className={`size-1.5 rounded-full ${streamer ? "bg-primary" : "bg-muted-foreground"}`}
               />
               {streamer ? `Watching @${streamer}` : "KICK chat context"}
             </div>
@@ -278,8 +270,8 @@ export function ViewerChat({ username }: ViewerChatProps) {
         </div>
       </header>
 
-      <section className="shrink-0 border-b border-border/60 bg-background/75 px-4 py-3 backdrop-blur sm:px-6">
-        <div className="mx-auto w-full max-w-5xl">
+      <section className="shrink-0 border-b bg-background px-4 py-2 sm:px-6">
+        <div className="mx-auto w-full max-w-6xl">
           <KickStreamConnector />
         </div>
       </section>
@@ -296,63 +288,63 @@ export function ViewerChat({ username }: ViewerChatProps) {
             <MessageScrollerViewport>
               <MessageScrollerContent
                 aria-live="polite"
-                className="mx-auto w-full max-w-3xl px-4 pb-8 pt-6 sm:px-6 sm:pt-10"
+                className="mx-auto w-full max-w-3xl px-4 py-5 sm:px-6 sm:py-6"
               >
                 {!hasMessages && !isPending ? (
-                  <div className="flex min-h-[calc(100dvh-15rem)] flex-col items-center justify-center text-center">
-                    <span className="mb-5 grid size-12 place-items-center rounded-2xl border border-primary/25 bg-primary/10 text-primary">
-                      <Sparkles className="size-6" />
-                    </span>
-                    <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
-                      Ask about this stream
-                    </h1>
-                    <p className="mt-3 max-w-md text-sm leading-6 text-muted-foreground sm:text-base">
-                      Catch up, decode chat, or ask what happened. Sidekick answers from recent
-                      KICK chat context.
-                    </p>
-                    <div className="mt-6 grid max-w-xl gap-3 text-left sm:grid-cols-2">
-                      <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-muted-foreground">
-                        <div className="mb-1 flex items-center gap-2 font-semibold uppercase tracking-[0.18em] text-primary">
-                          <span className="size-1.5 rounded-full bg-primary" />
-                          Agent tool calls
-                        </div>
-                        <p>Ask a question to see the same tool calls the voice agent uses.</p>
-                      </div>
-                      <div className="rounded-2xl border bg-card/80 px-4 py-3 text-xs text-muted-foreground">
-                        <div className="mb-1 flex items-center gap-2 font-semibold uppercase tracking-[0.18em] text-primary">
-                          <Radio className="size-3" />
-                          Live Kick feed
-                        </div>
-                        <p className="line-clamp-2">
-                          {kickActivities[0]
-                            ? `${kickActivities[0].title}: ${kickActivities[0].detail}`
-                            : "Waiting for chat activity…"}
+                  <div className="flex flex-1 items-center justify-center py-8">
+                    <section className="w-full max-w-xl overflow-hidden rounded-lg border bg-card">
+                      <header className="flex h-11 items-center gap-2 border-b px-4">
+                        <MessageSquare className="size-4 text-primary" />
+                        <p className="text-sm font-semibold">Sidekick chat</p>
+                        <span className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <span aria-hidden="true" className="size-1.5 rounded-full bg-primary" />
+                          Live context
+                        </span>
+                      </header>
+                      <div className="p-5 sm:p-6">
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                          Ask about this stream
+                        </h1>
+                        <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+                          Catch up, decode chat, or ask what happened using recent KICK activity.
                         </p>
+                        <div className="mt-6 space-y-3 border-t pt-4 text-xs text-muted-foreground">
+                          <p className="flex gap-2">
+                            <span aria-hidden="true" className="mt-1 size-1.5 shrink-0 bg-primary" />
+                            Live chat, follows, subscriptions, and stream details update the context.
+                          </p>
+                          <p className="flex gap-2">
+                            <span aria-hidden="true" className="mt-1 size-1.5 shrink-0 bg-primary" />
+                            Every answer shows the exact insight tools it used.
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    </section>
                   </div>
                 ) : (
-                  <MessageGroup className="gap-7">
+                  <MessageGroup className="gap-3">
                     {messages.map((message, index) => (
                       <MessageScrollerItem
                         key={message.id}
                         scrollAnchor={index === messages.length - 1 && !isPending}
                       >
-                        <Message align={message.role === "user" ? "end" : "start"}>
-                          {message.role === "assistant" && (
-                            <MessageAvatar className="size-8 self-start bg-primary text-primary-foreground">
-                              <Sparkles className="size-4" />
-                            </MessageAvatar>
-                          )}
+                        <Message>
                           <MessageContent
-                            className={
-                              message.role === "user"
-                                ? "max-w-[85%] rounded-3xl bg-muted px-4 py-3 sm:max-w-[75%]"
-                                : "max-w-[calc(100%-2.5rem)] pt-1"
-                            }
+                            className={`rounded-md border bg-card px-4 py-3 ${
+                              message.role === "assistant"
+                                ? "border-primary/30"
+                                : "border-border"
+                            }`}
                           >
+                            <p
+                              className={`text-xs font-semibold ${
+                                message.role === "assistant" ? "text-primary" : "text-chart-3"
+                              }`}
+                            >
+                              {message.role === "assistant" ? "Sidekick" : `You · @${username}`}
+                            </p>
                             {message.role === "assistant" && message.toolCalls?.length ? (
-                              <div className="mb-3 space-y-1 rounded-2xl border border-primary/20 bg-primary/5 p-3 font-mono text-[11px] text-muted-foreground">
+                              <div className="space-y-1 border-l-2 border-primary bg-background px-3 py-2 font-mono text-[11px] text-muted-foreground">
                                 {message.toolCalls.map((toolCall) => (
                                   <div key={`${message.id}-${toolCall.tool}`} className="flex gap-2">
                                     <Wrench className="mt-0.5 size-3 shrink-0 text-primary" />
@@ -363,7 +355,7 @@ export function ViewerChat({ username }: ViewerChatProps) {
                                 ))}
                               </div>
                             ) : null}
-                            <p className="whitespace-pre-wrap text-[15px] leading-7">
+                            <p className="whitespace-pre-wrap text-sm leading-6">
                               {message.content}
                             </p>
                           </MessageContent>
@@ -374,11 +366,12 @@ export function ViewerChat({ username }: ViewerChatProps) {
                     {isPending && (
                       <MessageScrollerItem scrollAnchor>
                         <Message>
-                          <MessageAvatar className="size-8 self-start bg-primary text-primary-foreground">
-                            <Sparkles className="size-4" />
-                          </MessageAvatar>
-                          <MessageContent className="pt-3">
-                            <div aria-label="Sidekick is responding" className="flex items-center gap-1">
+                          <MessageContent className="rounded-md border border-primary/30 bg-card px-4 py-3">
+                            <p className="text-xs font-semibold text-primary">Sidekick</p>
+                            <div
+                              aria-label="Sidekick is responding"
+                              className="flex items-center gap-1 py-1"
+                            >
                               <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
                               <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
                               <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground" />
@@ -396,7 +389,7 @@ export function ViewerChat({ username }: ViewerChatProps) {
         </MessageScrollerProvider>
       </main>
 
-      <footer className="shrink-0 bg-gradient-to-t from-background via-background to-background/0 px-4 pb-4 pt-2 sm:px-6 sm:pb-6">
+      <footer className="shrink-0 border-t bg-card px-4 py-3 sm:px-6 sm:py-4">
         <div className="mx-auto w-full max-w-3xl">
           <ChatComposer disabled={isPending} onSend={sendMessage} />
           {isError ? (

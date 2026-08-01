@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { CheckCircle2, ExternalLink, LinkIcon, PlugZap, X } from "lucide-react";
+import { ExternalLink, PlugZap, X } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useConnectedKickStream } from "@/hooks/use-connected-kick-stream";
@@ -32,64 +31,50 @@ export function KickStreamConnector({ className }: KickStreamConnectorProps) {
   }
 
   return (
-    <section
-      className={cn(
-        "rounded-3xl border-2 border-primary/35 bg-card/95 p-4 shadow-lg shadow-primary/10",
-        className,
-      )}
-    >
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <p className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.16em] text-primary">
-            <PlugZap className="size-4" />
-            Paste Kick stream link
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            This is the stream target selector for the viewer + dashboard UI.
-          </p>
+    <section className={cn("flex flex-col gap-2", className)}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="flex min-w-40 items-center gap-2">
+          <PlugZap className="size-4 text-primary" />
+          <div>
+            <p className="text-xs font-semibold">Connect stream</p>
+            <p className="text-[11px] text-muted-foreground">Target a KICK channel</p>
+          </div>
         </div>
-        {stream ? (
-          <Badge variant="default" className="shrink-0">
-            <CheckCircle2 className="size-3" />@{stream.slug}
-          </Badge>
-        ) : null}
-      </div>
 
-      <form className="grid gap-2 sm:grid-cols-[1fr_auto_auto]" onSubmit={submit}>
-        <label className="relative block">
-          <span className="sr-only">Kick stream URL</span>
-          <LinkIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" />
+        <form className="flex min-w-0 flex-1 gap-2" onSubmit={submit}>
           <Input
             aria-label="Kick stream URL"
-            className="h-12 rounded-2xl border-2 border-primary/30 bg-background pl-10 pr-4 text-base shadow-inner placeholder:text-muted-foreground/70 focus-visible:border-primary"
+            className="h-8 bg-background"
             onChange={(event) => {
               setValue(event.target.value);
               setError(null);
             }}
-            placeholder="https://kick.com/orbitfps"
+            placeholder="https://kick.com/channel"
             value={value}
           />
-        </label>
-        <Button className="h-12 rounded-2xl px-5 font-bold" type="submit">
-          Connect
-        </Button>
-        {stream ? (
-          <Button
-            aria-label="Disconnect stream"
-            className="size-12 shrink-0 rounded-2xl"
-            onClick={clearConnection}
-            size="icon"
-            type="button"
-            variant="ghost"
-          >
-            <X className="size-4" />
+          <Button className="h-8 shrink-0" type="submit">
+            Connect
           </Button>
-        ) : null}
-      </form>
+          {stream ? (
+            <Button
+              aria-label="Disconnect stream"
+              className="size-8 shrink-0"
+              onClick={clearConnection}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              <X className="size-4" />
+            </Button>
+          ) : null}
+        </form>
+      </div>
 
-      <div className="mt-2 min-h-4 text-xs">
+      <div className="min-h-4 text-[11px] sm:pl-42">
         {error ? (
-          <p className="text-destructive" role="alert">{error}</p>
+          <p className="text-destructive" role="alert">
+            {error}
+          </p>
         ) : stream ? (
           <a
             className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"
@@ -97,7 +82,7 @@ export function KickStreamConnector({ className }: KickStreamConnectorProps) {
             rel="noreferrer"
             target="_blank"
           >
-            Connected target: {stream.url}
+            Connected to @{stream.slug}
             <ExternalLink className="size-3" />
           </a>
         ) : (

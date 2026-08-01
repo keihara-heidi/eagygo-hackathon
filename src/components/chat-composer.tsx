@@ -34,7 +34,7 @@ export function ChatComposer({ disabled = false, onSend }: ChatComposerProps) {
         horizontalRule: false,
         orderedList: false,
       }),
-      Placeholder.configure({ placeholder: "Ask Sidekick anything…" }),
+      Placeholder.configure({ placeholder: "Message Sidekick" }),
     ],
     editorProps: {
       attributes: {
@@ -42,7 +42,7 @@ export function ChatComposer({ disabled = false, onSend }: ChatComposerProps) {
         "aria-multiline": "true",
         role: "textbox",
         class:
-          "max-h-40 min-h-14 overflow-y-auto px-4 py-4 pr-16 text-[15px] leading-6 text-foreground focus:outline-none",
+          "max-h-40 min-h-11 overflow-y-auto px-3 py-2.5 pr-14 text-sm leading-6 text-foreground focus:outline-none",
       },
       handleKeyDown: (_view, event) => {
         if (event.key !== "Enter" || event.shiftKey || event.isComposing) return false;
@@ -76,13 +76,13 @@ export function ChatComposer({ disabled = false, onSend }: ChatComposerProps) {
 
   return (
     <form
-      className="chat-editor relative overflow-hidden rounded-2xl border border-border bg-card shadow-xl shadow-black/20 transition-colors focus-within:border-primary/50"
+      className="chat-editor relative overflow-hidden rounded-lg border border-border bg-background transition-colors focus-within:border-primary/60"
       onSubmit={submit}
     >
       <EditorContent editor={editor} />
       <Button
         aria-label="Send message"
-        className="absolute bottom-2.5 right-2.5 size-9 rounded-xl"
+        className="absolute bottom-1.5 right-1.5 size-8 rounded-md"
         disabled={disabled || empty}
         size="icon"
         type="submit"

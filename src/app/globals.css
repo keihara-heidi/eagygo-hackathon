@@ -42,7 +42,8 @@
   --color-kick-raised: #232629;
   --color-kick-muted: #9fa6ad;
   --font-sans: var(--font-inter);
-  --font-heading: var(--font-booster);
+  --font-heading: var(--font-inter);
+  --font-brand: var(--font-booster);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --radius-sm: calc(var(--radius) * 0.5);
   --radius-md: var(--radius);
@@ -79,7 +80,7 @@
   --chart-3: #45adfc;
   --chart-4: #c572fd;
   --chart-5: #fcb645;
-  --radius: 0.5rem;
+  --radius: 0.25rem;
   --sidebar: #171a1c;
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #53fc18;
