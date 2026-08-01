@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
-import { buildChatMessage } from "@/lib/sidekick/mock-engine";
-import { PERSONAS, STREAMER } from "@/lib/sidekick/personas";
-import { getSession } from "@/lib/sidekick/session";
+import { CAST, STREAMER } from "@/lib/chat-engine/cast";
+import { chatMessageDelivery } from "@/lib/chat-engine/deliveries";
+import { getSidekickRuntime } from "@/lib/sidekick/runtime";
 
 export const dynamic = "force-dynamic";
 
@@ -25,14 +25,16 @@ export async function POST(request: Request) {
   }
 
   const as = typeof body?.as === "string" ? body.as : "viewer";
-  const mod = PERSONAS.find((persona) => persona.kind === "mod");
-  const viewer = PERSONAS.find((persona) => persona.kind === "regular");
+  const mod = CAST.find((member) => member.kind === "mod");
+  const viewer = CAST.find((member) => member.kind === "regular");
   const sender =
     as === "streamer" ? STREAMER
     : as === "mod" && mod ? mod.user
     : viewer ? viewer.user
     : STREAMER;
 
-  getSession().ingest(buildChatMessage(sender, content));
+  getSidekickRuntime().engine.publish(
+    chatMessageDelivery({ sender, text: content }, new Date()),
+  );
   return NextResponse.json({ ok: true, is_sent: true });
 }

@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { getInsights } from "@/lib/sidekick/insights";
-import { getSession } from "@/lib/sidekick/session";
+import { getSidekickRuntime } from "@/lib/sidekick/runtime";
 
 export const dynamic = "force-dynamic";
 
 export function GET() {
-  return NextResponse.json({ questions: getInsights(getSession()).questions() });
+  return NextResponse.json({ questions: getSidekickRuntime().insights.questions() });
 }

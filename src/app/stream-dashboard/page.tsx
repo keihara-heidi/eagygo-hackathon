@@ -24,7 +24,7 @@ import { useConnectedKickStream } from "@/hooks/use-connected-kick-stream";
 import { useKickStreamEvents } from "@/hooks/use-kick-stream-events";
 import { useSidekickAgentChat } from "@/hooks/use-sidekick-agent-chat";
 import type { StampedEvent } from "@/lib/chat-engine/types";
-import { STREAM_INFO, STREAMER } from "@/lib/sidekick/personas";
+import { STREAM_INFO, STREAMER } from "@/lib/chat-engine/cast";
 
 const MESSAGE_WINDOW_MS = 60_000;
 const INSIGHT_WINDOW_MS = 5 * 60_000;

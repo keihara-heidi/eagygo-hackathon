@@ -1,8 +1,8 @@
 /**
  * Fixture cast and content pools for the mock chat engine. User shapes follow
- * the docs-faithful `KickUser` model verbatim. Identities intentionally match
- * `src/lib/sidekick/personas.ts` (same user_ids/usernames) so both engines
- * present one consistent cast until the surfaces are consolidated.
+ * the docs-faithful `KickUser` model verbatim. This is the single cast for
+ * the whole app — the insight engine's question topics (with answers) live
+ * here too.
  */
 
 import type { KickBadge, KickUser } from "@/lib/kick/types";
@@ -200,6 +200,8 @@ export const NEWCOMER_GREETINGS = [
 export interface QuestionTopic {
   id: string;
   label: string;
+  /** What the streamer answered on stream — the recall payload for `!answered`. */
+  answer: string;
   phrasings: readonly string[];
 }
 
@@ -210,6 +212,7 @@ export interface QuestionTopic {
 export const SENS_TOPIC: QuestionTopic = {
   id: "sens",
   label: "mouse sensitivity / DPI",
+  answer: "800 DPI, 0.8 in-game — he answered this on stream.",
   phrasings: [
     "what's your sens?",
     "whats ur dpi and sens",
@@ -228,6 +231,7 @@ export const QUESTION_TOPICS: readonly QuestionTopic[] = [
   {
     id: "loadout",
     label: "current loadout",
+    answer: "HRM-9 with the Purifier attachment set — pinned in !loadout.",
     phrasings: [
       "what loadout is this",
       "class setup?",
@@ -242,6 +246,7 @@ export const QUESTION_TOPICS: readonly QuestionTopic[] = [
   {
     id: "schedule",
     label: "stream schedule",
+    answer: "Streaming daily until Top 500, usually 7pm AEST starts.",
     phrasings: [
       "how long you streaming today",
       "stream tomorrow?",

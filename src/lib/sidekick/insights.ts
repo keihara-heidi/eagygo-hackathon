@@ -1,16 +1,14 @@
 /**
- * Insight engine: consumes the session's event stream and maintains rolling
- * chat intelligence — trending words/emotes, question clusters, vibe,
+ * Insight engine: subscribes to the chat engine's event stream and maintains
+ * rolling chat intelligence — trending words/emotes, question clusters, vibe,
  * chatter identity — plus the answered-question store that closes the
  * streamer/viewer feedback loop.
  */
 
 import type { ChatMessageEvent } from "@/lib/kick/events";
+import type { ChatEngine, StampedEvent } from "@/lib/chat-engine";
 
-import { buildChatMessage } from "./mock-engine";
-import { EMOTES, QUESTION_TOPICS, SIDEKICK_BOT, STREAM_INFO, STREAMER } from "./personas";
-import type { StreamSession } from "./session";
-import type { SidekickEvent } from "./types";
+import { EMOTES, QUESTION_TOPICS, SIDEKICK_BOT, STREAM_INFO, STREAMER } from "@/lib/chat-engine/cast";
 
 // ---------------------------------------------------------------------------
 // Public result shapes (the contract consumed by widget + voice tools)
@@ -133,6 +131,13 @@ interface InternalCluster extends QuestionCluster {
 }
 
 export class InsightEngine {
+  /** Bot-posting channel — the digest crosses the same seam as real chat. */
+  private readonly postBot: (content: string) => void;
+
+  constructor(postBot: (content: string) => void) {
+    this.postBot = postBot;
+  }
+
   private readonly messages: TrackedMessage[] = [];
   private readonly clusters = new Map<string, InternalCluster>();
   private readonly firstSeen = new Map<number, number>();
@@ -146,11 +151,11 @@ export class InsightEngine {
 
   // -- ingest ---------------------------------------------------------------
 
-  handleEvent(wrapped: SidekickEvent, session: StreamSession) {
-    const { event } = wrapped;
+  handleEvent(stamped: StampedEvent) {
+    const { event } = stamped;
     switch (event.type) {
       case "chat.message.sent":
-        this.handleChat(event.payload, session);
+        this.handleChat(event.payload);
         break;
       case "channel.followed":
         this.followers.push({ name: event.payload.follower.username, at: Date.now() });
@@ -172,7 +177,7 @@ export class InsightEngine {
     }
   }
 
-  private handleChat(payload: ChatMessageEvent, session: StreamSession) {
+  private handleChat(payload: ChatMessageEvent) {
     if (payload.sender.user_id === SIDEKICK_BOT.user_id) return;
 
     const badges = payload.sender.identity?.badges ?? [];
@@ -216,7 +221,7 @@ export class InsightEngine {
       this.messages.shift();
     }
 
-    if (isQuestion) this.assignToCluster(payload, session);
+    if (isQuestion) this.assignToCluster(payload);
   }
 
   /** `!answered` from a mod or the streamer resolves the hottest digested cluster. */
@@ -233,7 +238,7 @@ export class InsightEngine {
     return true;
   }
 
-  private assignToCluster(payload: ChatMessageEvent, session: StreamSession) {
+  private assignToCluster(payload: ChatMessageEvent) {
     const tokens = questionTokens(payload.content);
     const now = new Date().toISOString();
 
@@ -253,7 +258,7 @@ export class InsightEngine {
       best.askers = [...new Set([...best.askers, payload.sender.username])];
       best.last_asked_at = now;
       for (const word of tokens) best.tokens.add(word);
-      this.maybeDigest(best, session);
+      this.maybeDigest(best);
       return;
     }
 
@@ -274,15 +279,12 @@ export class InsightEngine {
   }
 
   /** Posts the chat-native digest when a cluster crosses the threshold. */
-  private maybeDigest(cluster: InternalCluster, session: StreamSession) {
+  private maybeDigest(cluster: InternalCluster) {
     if (cluster.digested || cluster.answered) return;
     if (cluster.askerIds.size < DIGEST_THRESHOLD) return;
     cluster.digested = true;
-    session.ingest(
-      buildChatMessage(
-        SIDEKICK_BOT,
-        `📢 ${cluster.askerIds.size} people have asked: "${cluster.representative}" — reply !answered once covered`,
-      ),
+    this.postBot(
+      `📢 ${cluster.askerIds.size} people have asked: "${cluster.representative}" — reply !answered once covered`,
     );
   }
 
@@ -468,19 +470,23 @@ export class InsightEngine {
 // Wiring
 // ---------------------------------------------------------------------------
 
-// The engine is stored on the session instance (not module state) so Next.js
-// dev hot reloads — which re-evaluate this module — keep the same engine and
-// its accumulated history.
-type SessionWithInsights = StreamSession & { __insights?: InsightEngine };
+// The engine is stored on the chat-engine instance (not module state) so
+// Next.js dev hot reloads — which re-evaluate this module — keep the same
+// engine and its accumulated history.
+type EngineWithInsights = ChatEngine & { __insights?: InsightEngine };
 
-export function getInsights(session: StreamSession): InsightEngine {
-  const holder = session as SessionWithInsights;
+export function getInsights(engine: ChatEngine): InsightEngine {
+  const holder = engine as EngineWithInsights;
   if (!holder.__insights) {
-    const engine = new InsightEngine();
-    holder.__insights = engine;
-    session.addIngestHook((event, activeSession) =>
-      engine.handleEvent(event, activeSession),
-    );
+    const insights = new InsightEngine((content) => {
+      void engine.postBotMessage(content).catch((error: unknown) => {
+        console.error("[insights] digest post failed:", error);
+      });
+    });
+    holder.__insights = insights;
+    // Backfill from seq 1 so anything published before we attached (warmup,
+    // dev auto-start) is still processed.
+    engine.subscribe((stamped) => insights.handleEvent(stamped), { fromSeq: 1 });
   }
   return holder.__insights;
 }

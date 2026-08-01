@@ -4,9 +4,8 @@
  * awaits these writes. Skipped entirely when DATABASE_URL is unset.
  */
 
-import { STREAMER, STREAM_INFO } from "./personas";
-import type { StreamSession } from "./session";
-import type { SidekickEvent } from "./types";
+import { STREAMER, STREAM_INFO } from "@/lib/chat-engine/cast";
+import type { ChatEngine, StampedEvent } from "@/lib/chat-engine";
 
 type Db = typeof import("@/db/client").db;
 type Schema = typeof import("@/db/schema");
@@ -46,7 +45,7 @@ function warnOnce(message: string, error: unknown) {
   console.warn(`[sidekick db-sink] ${message}:`, error);
 }
 
-async function ensureStreamRow(db: Db, schema: Schema, session: StreamSession) {
+async function ensureStreamRow(db: Db, schema: Schema, engine: ChatEngine) {
   if (state.streamRowId) return state.streamRowId;
 
   const [channel] = await db
@@ -68,12 +67,12 @@ async function ensureStreamRow(db: Db, schema: Schema, session: StreamSession) {
     .insert(schema.streams)
     .values({
       channelId: channel.id,
-      kickLivestreamId: session.sessionId,
+      kickLivestreamId: STREAM_INFO.livestream_id,
       title: STREAM_INFO.title,
       category: STREAM_INFO.category.name,
       status: "live",
       viewerCount: STREAM_INFO.viewer_count,
-      startedAt: session.startedAt,
+      startedAt: new Date(engine.getStreamContext().started_at),
     })
     .onConflictDoUpdate({
       target: schema.streams.kickLivestreamId,
@@ -114,14 +113,14 @@ async function ensureChatter(
   return chatter.id;
 }
 
-async function writeEvent(session: StreamSession, wrapped: SidekickEvent) {
+async function writeEvent(engine: ChatEngine, stamped: StampedEvent) {
   const loaded = await loadDb();
   if (!loaded) return;
   const { db, schema } = loaded;
-  const { event } = wrapped;
+  const { event } = stamped;
   if (event.type !== "chat.message.sent") return;
 
-  const streamId = await ensureStreamRow(db, schema, session);
+  const streamId = await ensureStreamRow(db, schema, engine);
   const chatterId = await ensureChatter(db, schema, event.payload.sender);
   await db
     .insert(schema.chatMessages)
@@ -138,8 +137,8 @@ async function writeEvent(session: StreamSession, wrapped: SidekickEvent) {
 }
 
 /** Enqueue an event for persistence. Serialized, non-blocking, best-effort. */
-export function persistEvent(session: StreamSession, wrapped: SidekickEvent) {
+export function persistEvent(engine: ChatEngine, stamped: StampedEvent) {
   state.queue = state.queue
-    .then(() => writeEvent(session, wrapped))
+    .then(() => writeEvent(engine, stamped))
     .catch((error) => warnOnce("write failed, persistence degraded", error));
 }

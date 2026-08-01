@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getInsights } from "@/lib/sidekick/insights";
-import { buildChatMessage } from "@/lib/sidekick/mock-engine";
-import { SIDEKICK_BOT } from "@/lib/sidekick/personas";
-import { getSession } from "@/lib/sidekick/session";
+import { getSidekickRuntime } from "@/lib/sidekick/runtime";
 import { VOICE_PRESET } from "@/lib/sidekick/voice-preset";
 
 export const dynamic = "force-dynamic";
@@ -27,20 +24,15 @@ export async function POST() {
     return NextResponse.json({ ok: true, posted: false, reason: "debounced" });
   }
 
-  const session = getSession();
-  const top = getInsights(session)
-    .questions()
-    .find((cluster) => !cluster.answered);
+  const { engine, insights } = getSidekickRuntime();
+  const top = insights.questions().find((cluster) => !cluster.answered);
   if (!top) {
     return NextResponse.json({ ok: true, posted: false, reason: "nothing pending" });
   }
 
   globalForBriefed.sidekickLastBriefedAt = now;
-  session.ingest(
-    buildChatMessage(
-      SIDEKICK_BOT,
-      `🎙 ${VOICE_PRESET.streamer} just asked what chat wants to know — "${top.representative}" (asked ${top.count}×) is up next`,
-    ),
+  await engine.postBotMessage(
+    `🎙 ${VOICE_PRESET.streamer} just asked what chat wants to know — "${top.representative}" (asked ${top.count}×) is up next`,
   );
   return NextResponse.json({ ok: true, posted: true });
 }

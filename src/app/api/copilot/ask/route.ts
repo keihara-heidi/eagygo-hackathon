@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { getInsights, type InsightEngine } from "@/lib/sidekick/insights";
-import { getSession } from "@/lib/sidekick/session";
+import { getSidekickRuntime } from "@/lib/sidekick/runtime";
+import type { InsightEngine } from "@/lib/sidekick/insights";
 
 export const dynamic = "force-dynamic";
 
@@ -170,7 +170,7 @@ export async function POST(request: Request) {
   const viewer = typeof body?.viewer === "string" ? body.viewer : null;
   const auto = body?.auto === true;
 
-  const insights = getInsights(getSession());
+  const insights = getSidekickRuntime().insights;
 
   if (auto || /what('| i)?s (going on|happening)|catch me up|did i miss/i.test(question)) {
     return NextResponse.json(catchup(insights, auto ? viewer : null));

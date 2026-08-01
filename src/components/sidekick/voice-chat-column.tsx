@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Gift, Heart, Shield, Star } from "lucide-react";
 
-import type { SidekickEvent } from "@/lib/sidekick/types";
+import { useKickStreamEvents } from "@/hooks/use-kick-stream-events";
+import type { StampedEvent } from "@/lib/chat-engine/types";
 import { cn } from "@/lib/utils";
 
 const SIDEKICK_USER_ID = 9_999_999;
@@ -11,24 +12,7 @@ const MAX_EVENTS = 200;
 
 /** Streams the live chat feed (webhook-shaped events) for the voice demo. */
 export function useVoiceChatFeed() {
-  const [events, setEvents] = useState<SidekickEvent[]>([]);
-  const seen = useRef(new Set<string>());
-
-  useEffect(() => {
-    const source = new EventSource("/api/stream/events");
-    source.onmessage = (message) => {
-      const parsed = JSON.parse(message.data) as SidekickEvent;
-      if (seen.current.has(parsed.id)) return;
-      seen.current.add(parsed.id);
-      setEvents((current) => {
-        const next = [...current, parsed];
-        return next.length > MAX_EVENTS ? next.slice(-MAX_EVENTS) : next;
-      });
-    };
-    return () => source.close();
-  }, []);
-
-  return events;
+  return useKickStreamEvents({ maxEvents: MAX_EVENTS }).events;
 }
 
 function renderContent(content: string) {
@@ -47,7 +31,7 @@ function renderContent(content: string) {
   });
 }
 
-function OverlayLine({ event }: { event: SidekickEvent }) {
+function OverlayLine({ event }: { event: StampedEvent }) {
   const { event: kickEvent } = event;
 
   if (kickEvent.type === "channel.followed") {
@@ -118,7 +102,7 @@ function OverlayLine({ event }: { event: SidekickEvent }) {
  * Kick-mobile-style chat overlay: translucent lines over the camera feed,
  * newest at the bottom, fading out toward the top.
  */
-export function VoiceChatOverlay({ events }: { events: SidekickEvent[] }) {
+export function VoiceChatOverlay({ events }: { events: StampedEvent[] }) {
   const viewportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -133,7 +117,7 @@ export function VoiceChatOverlay({ events }: { events: SidekickEvent[] }) {
         className="flex max-h-64 flex-col gap-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_18%)]"
       >
         {events.slice(-40).map((event) => (
-          <OverlayLine key={event.id} event={event} />
+          <OverlayLine key={event.seq} event={event} />
         ))}
       </div>
     </div>

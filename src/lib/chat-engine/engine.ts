@@ -21,6 +21,7 @@ import {
   buildHypeSpike,
   buildNewViewer,
   buildQuestionFlood,
+  buildWarmup,
   type ScenarioStep,
 } from "./scenarios";
 import type {
@@ -62,6 +63,7 @@ class ChatEngineImpl implements ChatEngine {
   private intensity = DEFAULT_INTENSITY;
   private hypeUntil = 0;
   private newcomersSpawned = 0;
+  private warmedUp = false;
 
   constructor(deps: ChatEngineDeps = {}) {
     this.clock = deps.clock ?? (() => new Date());
@@ -197,6 +199,7 @@ class ChatEngineImpl implements ChatEngine {
   readonly demo: DemoControls = {
     start: () => {
       if (this.baselineTimer) return;
+      this.warmup();
       this.baselineTimer = setInterval(
         () => this.baselineTick(),
         BASELINE_TICK_MS,
@@ -249,6 +252,16 @@ class ChatEngineImpl implements ChatEngine {
         this.publish(step.build(this.clock()));
       }, step.at_ms);
       this.pendingSteps.add(handle);
+    }
+  }
+
+  /** Seeds backdated history once, so insight windows are alive immediately. */
+  private warmup() {
+    if (this.warmedUp) return;
+    this.warmedUp = true;
+    const now = this.clock().getTime();
+    for (const step of buildWarmup(this.random)) {
+      this.publish(step.build(new Date(now + step.at_ms)));
     }
   }
 

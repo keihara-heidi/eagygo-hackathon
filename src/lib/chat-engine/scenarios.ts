@@ -160,6 +160,46 @@ export function buildNewViewer(newcomerIndex: number): ScenarioStep[] {
 }
 
 // ---------------------------------------------------------------------------
+// warmup — backdated history so chat and insight windows look alive from the
+// first query after a cold start. at_ms is negative: the engine publishes
+// each step with a past `now`, so payload created_at lands in the past.
+// ---------------------------------------------------------------------------
+
+const WARMUP_MESSAGE_COUNT = 45;
+const WARMUP_SPACING_MS = 5_300;
+
+export function buildWarmup(random: Rng): ScenarioStep[] {
+  const steps: ScenarioStep[] = [];
+  for (let i = 0; i < WARMUP_MESSAGE_COUNT; i += 1) {
+    const at_ms = -(WARMUP_MESSAGE_COUNT - i) * WARMUP_SPACING_MS;
+    const sender = pick(random, CAST).user;
+    const roll = random();
+    if (roll < 0.12) {
+      const line = pick(random, AMBIENT_LINES);
+      steps.push({
+        at_ms,
+        build: (now) =>
+          chatMessageDelivery({ sender, text: line, emoteNames: ["KEKW"] }, now),
+      });
+    } else if (roll < 0.18) {
+      const topic = pick(random, QUESTION_TOPICS);
+      const phrasing = pick(random, topic.phrasings);
+      steps.push({
+        at_ms,
+        build: (now) => chatMessageDelivery({ sender, text: phrasing }, now),
+      });
+    } else {
+      const line = pick(random, AMBIENT_LINES);
+      steps.push({
+        at_ms,
+        build: (now) => chatMessageDelivery({ sender, text: line }, now),
+      });
+    }
+  }
+  return steps;
+}
+
+// ---------------------------------------------------------------------------
 // Baseline ambient timeline — one potential delivery per tick.
 // ---------------------------------------------------------------------------
 
