@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ExternalLink,
   Gift,
   LogOut,
   MessageSquare,
@@ -269,17 +268,6 @@ function LiveKickChat({
         </MessageScrollerProvider>
       </div>
 
-      <footer className="shrink-0 border-t border-neutral-800 p-3">
-        <a
-          className="flex h-10 items-center rounded-md border border-neutral-700 bg-neutral-900 px-3 text-sm text-neutral-400 transition-colors hover:border-neutral-500 hover:text-white"
-          href={`https://kick.com/${streamer}`}
-          rel="noreferrer"
-          target="_blank"
-        >
-          <span className="truncate">Open @{streamer} chat on KICK</span>
-          <ExternalLink className="ml-auto size-4 shrink-0" />
-        </a>
-      </footer>
     </section>
   );
 }
