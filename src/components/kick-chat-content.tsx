@@ -57,14 +57,16 @@ export function KickChatContent({
   if (INLINE_EMOTE_TOKEN.test(content)) {
     return content.split(INLINE_EMOTE_PATTERN).map((part, index) => {
       const match = INLINE_EMOTE_EXACT.exec(part);
-      if (!match) return <span key={index}>{part}</span>;
+      const id = match?.[1];
+      const name = match?.[2];
+      if (!id || !name) return <span key={index}>{part}</span>;
 
       return (
         <EmoteImage
           key={index}
-          alt={match[2]}
+          alt={name}
           className={imageClassName}
-          id={match[1]}
+          id={id}
         />
       );
     });
