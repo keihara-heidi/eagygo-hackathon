@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ConversationProvider,
   useConversationControls,
@@ -15,7 +15,6 @@ import {
   Mic,
   RefreshCcw,
   UserPlus,
-  X,
 } from "lucide-react";
 
 import { apiClient } from "@/lib/api-client";
@@ -56,107 +55,115 @@ function Waveform({ active }: { active: boolean }) {
   );
 }
 
+/** Keys accepted as the push-to-talk trigger. Fn is invisible to browsers on
+ * macOS, so left Control (the key directly above Fn) is the practical bind;
+ * "Fn" is honored in case a browser ever reports it. */
+function isPttKey(event: KeyboardEvent): boolean {
+  return event.code === "ControlLeft" || event.key === "Fn";
+}
+
 /**
- * Wispr Flow-style indicator pinned above the phone's bottom edge: compact
- * mic chip when idle, expanding into waveform + transcript + tool chip while
- * the voice session is live.
+ * Wispr Flow-style push-to-talk HUD: invisible when idle. Hold the trigger
+ * key to open the session and show the pill; on release the mic turn ends,
+ * and the pill stays up just long enough for Sidekick to finish answering.
  */
 function WhisprPill({ transcript }: { transcript: TranscriptLine[] }) {
   const { startSession, endSession } = useConversationControls();
   const { status } = useConversationStatus();
   const { isSpeaking } = useConversationMode();
+  const [held, setHeld] = useState(false);
   const [haptic, setHaptic] = useState(false);
 
   const connected = status === "connected";
+  const visible = held || connected;
   const lastUser = [...transcript].reverse().find((line) => line.role === "user");
   const lastAi = [...transcript].reverse().find((line) => line.role === "ai");
 
-  const toggle = useCallback(async () => {
+  const pulseHaptic = () => {
     setHaptic(true);
     if (typeof navigator !== "undefined" && "vibrate" in navigator) {
       navigator.vibrate?.(30);
     }
     setTimeout(() => setHaptic(false), 320);
-
-    if (connected) {
-      await endSession();
-      return;
-    }
-    if (!AGENT_ID) {
-      console.warn("NEXT_PUBLIC_ELEVENLABS_AGENT_ID is not set");
-      return;
-    }
-    await startSession({ agentId: AGENT_ID });
-  }, [connected, endSession, startSession]);
+  };
 
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== "v" || event.repeat) return;
-      const target = event.target as HTMLElement | null;
-      if (target && ["INPUT", "TEXTAREA"].includes(target.tagName)) return;
-      void toggle();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!isPttKey(event) || event.repeat) return;
+      event.preventDefault();
+      setHeld(true);
+      pulseHaptic();
+      if (!connected) {
+        if (!AGENT_ID) {
+          console.warn("NEXT_PUBLIC_ELEVENLABS_AGENT_ID is not set");
+          return;
+        }
+        void startSession({ agentId: AGENT_ID });
+      }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [toggle]);
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (!isPttKey(event)) return;
+      setHeld(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, [connected, startSession]);
+
+  // After release: let Sidekick finish speaking, then close the session.
+  // Grace is long while we still await the answer, short once it has landed.
+  useEffect(() => {
+    if (held || !connected || isSpeaking) return;
+    const grace = lastAi ? 1_500 : 8_000;
+    const timer = setTimeout(() => void endSession(), grace);
+    return () => clearTimeout(timer);
+  }, [held, connected, isSpeaking, lastAi, endSession]);
+
+  if (!visible) return null;
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-5 z-30 flex justify-center px-4">
       <div
         className={cn(
-          "pointer-events-auto overflow-hidden rounded-[24px] border bg-black/85 shadow-2xl shadow-black/60 backdrop-blur transition-all duration-300",
-          connected ? "w-full border-primary/40 px-3.5 py-2.5" : "w-auto border-white/15 px-2 py-1.5",
+          "pointer-events-auto w-full overflow-hidden rounded-[24px] border border-primary/40 bg-black/85 px-3.5 py-2.5 shadow-2xl shadow-black/60 backdrop-blur transition-all duration-300",
           haptic && "sidekick-haptic",
         )}
       >
-        {!connected ? (
-          <button
-            type="button"
-            onClick={() => void toggle()}
-            className="flex items-center gap-2 px-2 py-0.5 text-xs font-semibold text-white/80"
-          >
-            <span className="flex size-6 items-center justify-center rounded-full bg-primary/20">
-              <Mic className="size-3.5 text-primary" />
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary">
+              <Bot className="size-3.5" /> Sidekick
             </span>
-            Ask Sidekick
-          </button>
-        ) : (
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary">
-                <Bot className="size-3.5" /> Sidekick
-              </span>
-              <Waveform active />
-              <span
-                className={cn(
-                  "text-[9px] font-semibold uppercase tracking-wider",
-                  isSpeaking ? "text-primary" : "text-white/50",
-                )}
-              >
-                {isSpeaking ? "speaking" : "listening"}
-              </span>
-              <button
-                type="button"
-                onClick={() => void toggle()}
-                className="ml-auto shrink-0 text-white/50 hover:text-white"
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-            {lastUser && (
-              <p className="truncate text-[11px] text-white/60">
-                <span className="text-white/40">You: </span>
-                {lastUser.text}
-              </p>
-            )}
-            {lastAi && (
-              <p className="line-clamp-2 text-[11px] font-medium text-white">
-                <span className="text-primary">Sidekick: </span>
-                {lastAi.text}
-              </p>
-            )}
+            <Waveform active={connected} />
+            <span
+              className={cn(
+                "text-[9px] font-semibold uppercase tracking-wider",
+                isSpeaking ? "text-primary" : "text-white/50",
+              )}
+            >
+              {!connected ? "connecting" : isSpeaking ? "speaking" : held ? "listening" : "finishing"}
+            </span>
+            <span className="ml-auto flex items-center gap-1 text-[9px] text-white/40">
+              <Mic className="size-2.5" />
+              {held ? "release when done" : "hold fn to talk"}
+            </span>
           </div>
-        )}
+          {lastUser && (
+            <p className="truncate text-[11px] text-white/60">
+              <span className="text-white/40">You: </span>
+              {lastUser.text}
+            </p>
+          )}
+          {lastAi && (
+            <p className="line-clamp-2 text-[11px] font-medium text-white">
+              <span className="text-primary">Sidekick: </span>
+              {lastAi.text}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
