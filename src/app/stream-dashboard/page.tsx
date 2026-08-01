@@ -180,8 +180,10 @@ export default function StreamDashboardPage() {
     messages: agentMessages,
     sendMessage: askAgent,
     isPending: agentPending,
+    isStreaming: agentStreaming,
     isError: agentError,
   } = useSidekickAgentChat();
+  const agentBusy = agentPending || agentStreaming;
   const [agentQuestion, setAgentQuestion] = useState("");
   const connectedSlug = connectedStream?.slug;
 
@@ -243,7 +245,7 @@ export default function StreamDashboardPage() {
   function submitAgentQuestion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const question = agentQuestion.trim();
-    if (!question || agentPending) return;
+    if (!question || agentBusy) return;
     askAgent(question);
     setAgentQuestion("");
   }
@@ -374,7 +376,7 @@ export default function StreamDashboardPage() {
                   <Input
                     aria-label="Ask Sidekick"
                     className="h-9 bg-background"
-                    disabled={agentPending}
+                    disabled={agentBusy}
                     onChange={(event) => setAgentQuestion(event.target.value)}
                     placeholder="Ask about vibe, questions, trends…"
                     value={agentQuestion}
@@ -382,7 +384,7 @@ export default function StreamDashboardPage() {
                   <Button
                     aria-label="Ask Sidekick"
                     className="size-9 shrink-0"
-                    disabled={agentPending || !agentQuestion.trim()}
+                    disabled={agentBusy || !agentQuestion.trim()}
                     size="icon"
                     type="submit"
                   >

@@ -229,7 +229,7 @@ function LiveKickActivityBar({
 export function ViewerChat({ username }: ViewerChatProps) {
   const streamContext = useQuery(streamContextQueryOptions);
   const { stream: connectedStream } = useConnectedKickStream();
-  const { messages, sendMessage, isPending, isError } = useSidekickAgentChat();
+  const { messages, sendMessage, isPending, isStreaming, isError } = useSidekickAgentChat();
   const { events: kickEvents, connectionState } = useKickStreamEvents({ maxEvents: 80 });
 
   const streamer = connectedStream?.slug ?? streamContext.data?.streamer;
@@ -391,7 +391,7 @@ export function ViewerChat({ username }: ViewerChatProps) {
 
       <footer className="shrink-0 border-t bg-card px-4 py-3 sm:px-6 sm:py-4">
         <div className="mx-auto w-full max-w-3xl">
-          <ChatComposer disabled={isPending} onSend={sendMessage} />
+          <ChatComposer disabled={isPending || isStreaming} onSend={sendMessage} />
           {isError ? (
             <p className="mt-2 text-center text-xs text-destructive" role="alert">
               Couldn&apos;t get a response. Try again.
