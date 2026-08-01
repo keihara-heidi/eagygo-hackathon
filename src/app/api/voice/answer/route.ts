@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getFastSidekickAgent } from "@/lib/sidekick/agent";
+import { getSidekickAgent } from "@/lib/sidekick/agent";
 import { maskSpeech } from "@/lib/sidekick/clean-speech";
 import { postVoiceBriefing } from "@/lib/sidekick/voice-briefing";
 
@@ -78,13 +78,16 @@ export async function POST(request: Request) {
     void postVoiceBriefing().catch(() => {});
   }
 
-  const agent = getFastSidekickAgent();
+  const agent = getSidekickAgent();
   let answer: string;
   let source = "scripted";
 
   if (agent) {
     try {
-      const result = await agent.generate({ prompt: question });
+      const result = await agent.generate({
+        prompt: question,
+        options: { responseMode: "voice" },
+      });
       const cleaned = cleanSpokenAnswer(result.text, question);
       if (cleaned) {
         answer = cleaned;

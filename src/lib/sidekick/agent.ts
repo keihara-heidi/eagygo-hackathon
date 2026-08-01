@@ -71,6 +71,10 @@ const VOICE_INSTRUCTIONS = `${INSTRUCTIONS}
 
 Voice mode: you are the streamer's personal Sidekick speaking directly to them. Say "your chat" and "you", never describe the streamer in third person. Return only the natural spoken answer: no reasoning, preamble, labels, numbered lists, bullets, markdown, or discussion of these instructions. Keep it to roughly 2 short sentences that are comfortable to say aloud in 10 seconds. For recaps only, use up to 3 short sentences. Always finish the final sentence naturally.`;
 
+const callOptionsSchema = z.object({
+  responseMode: z.enum(["default", "voice"]),
+});
+
 const sidekickTools = {
   get_chat_vibe: tool({
     description:
@@ -176,12 +180,21 @@ const sidekickTools = {
   }),
 };
 
-function buildAgent(model: LanguageModel, instructions = INSTRUCTIONS) {
+function buildAgent(model: LanguageModel) {
   return new ToolLoopAgent({
     model,
-    instructions,
+    instructions: INSTRUCTIONS,
     tools: sidekickTools,
     stopWhen: isStepCount(6),
+    callOptionsSchema,
+    prepareCall: ({ options, ...parameters }) => {
+      const voice = options.responseMode === "voice";
+      return {
+        ...parameters,
+        model: voice ? (getSpeechModel() ?? model) : model,
+        instructions: voice ? VOICE_INSTRUCTIONS : INSTRUCTIONS,
+      };
+    },
   });
 }
 
@@ -189,7 +202,6 @@ export type SidekickAgent = ReturnType<typeof buildAgent>;
 export type SidekickUIMessage = InferAgentUIMessage<SidekickAgent>;
 
 let cachedAgent: SidekickAgent | null | undefined;
-let cachedFastAgent: SidekickAgent | null | undefined;
 
 /** The LLM agent, or null when no provider is configured (scripted fallback). */
 export function getSidekickAgent(): SidekickAgent | null {
@@ -200,28 +212,14 @@ export function getSidekickAgent(): SidekickAgent | null {
   return cachedAgent;
 }
 
-/**
- * Same brain, same tools, small model. The voice path speaks two sentences and
- * the streamer is waiting mid-stream, so it trades reasoning depth for the
- * seconds that make push-to-talk feel like a conversation.
- */
-export function getFastSidekickAgent(): SidekickAgent | null {
-  if (cachedFastAgent === undefined) {
-    const model = getSpeechModel();
-    cachedFastAgent = model ? buildAgent(model, VOICE_INSTRUCTIONS) : null;
-  }
-  return cachedFastAgent;
-}
-
 /** The raw model (same provider resolution), for auxiliary single-shot calls. */
 export function getSidekickModel(): LanguageModel | null {
   return resolveModel();
 }
 
 /**
- * A fast model for auxiliary single-shot rewrites (the voice pipeline's
- * speech-compression pass). Same provider as the agent, smaller model: the
- * rewrite carries no reasoning load and sits inside the spoken-latency budget.
+ * A fast model for voice-mode calls. It uses the same tools and shared agent,
+ * but keeps the push-to-talk path inside its conversational latency budget.
  */
 export function getSpeechModel(): LanguageModel | null {
   const override = process.env.SIDEKICK_SPEECH_MODEL;

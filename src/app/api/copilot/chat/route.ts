@@ -17,13 +17,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "llm_not_configured" }, { status: 503 });
   }
 
-  const body = (await request.json().catch(() => null)) as { messages?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as {
+    messages?: unknown;
+    responseMode?: unknown;
+  } | null;
   if (!Array.isArray(body?.messages) || body.messages.length === 0) {
     return NextResponse.json({ error: "messages_required" }, { status: 400 });
   }
+  const responseMode = body.responseMode === "voice" ? "voice" : "default";
 
   return createAgentUIStreamResponse({
     agent,
     uiMessages: body.messages,
+    options: { responseMode },
   });
 }
