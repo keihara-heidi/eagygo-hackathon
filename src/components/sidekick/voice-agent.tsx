@@ -8,13 +8,12 @@ import {
   useConversationMode,
 } from "@elevenlabs/react";
 import {
-  Bot,
   Eye,
   Flame,
   MessageCircleQuestion,
-  Mic,
   RefreshCcw,
   UserPlus,
+  X,
 } from "lucide-react";
 
 import { apiClient } from "@/lib/api-client";
@@ -35,18 +34,34 @@ interface TranscriptLine {
 
 function Waveform({ active }: { active: boolean }) {
   return (
-    <span className="flex h-4 items-center gap-[3px]">
+    <span className="flex h-5 items-center gap-[3px]">
       {[0, 1, 2, 3, 4].map((bar) => (
         <span
           key={bar}
           className={cn(
-            "w-[3px] rounded-full bg-primary transition-all",
-            active ? "sidekick-wave-bar h-4" : "h-1 opacity-40",
+            "w-[4px] rounded-full bg-primary transition-all",
+            active ? "sidekick-wave-bar h-5" : "h-1.5 opacity-40",
           )}
           style={{ animationDelay: `${bar * 0.12}s` }}
         />
       ))}
     </span>
+  );
+}
+
+/** Kick's blocky pixel-K mark, drawn inline (kick.com blocks asset hotlinks). */
+function KickLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 28 28" className={className} aria-label="Kick" role="img">
+      <g fill="currentColor">
+        <rect x="2" y="2" width="8" height="24" />
+        <rect x="10" y="10" width="4" height="8" />
+        <rect x="14" y="6" width="4" height="4" />
+        <rect x="14" y="18" width="4" height="4" />
+        <rect x="18" y="2" width="8" height="8" />
+        <rect x="18" y="18" width="8" height="8" />
+      </g>
+    </svg>
   );
 }
 
@@ -71,7 +86,6 @@ function WhisprPill({ transcript }: { transcript: TranscriptLine[] }) {
 
   const connected = status === "connected";
   const visible = held || connected;
-  const lastUser = [...transcript].reverse().find((line) => line.role === "user");
   const lastAi = [...transcript].reverse().find((line) => line.role === "ai");
 
   const pulseHaptic = () => {
@@ -119,46 +133,29 @@ function WhisprPill({ transcript }: { transcript: TranscriptLine[] }) {
 
   if (!visible) return null;
 
+  const label = !connected ? "Connecting…" : isSpeaking ? "Speaking…" : "Listening";
+
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-5 z-30 flex justify-center px-4">
-      <div
-        className={cn(
-          "pointer-events-auto w-full overflow-hidden rounded-[24px] border border-primary/40 bg-black/85 px-3.5 py-2.5 shadow-2xl shadow-black/60 backdrop-blur transition-all duration-300",
-          haptic && "sidekick-haptic",
-        )}
-      >
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary">
-              <Bot className="size-3.5" /> Sidekick
-            </span>
-            <Waveform active={connected} />
-            <span
-              className={cn(
-                "text-[9px] font-semibold uppercase tracking-wider",
-                isSpeaking ? "text-primary" : "text-white/50",
-              )}
-            >
-              {!connected ? "connecting" : isSpeaking ? "speaking" : held ? "listening" : "finishing"}
-            </span>
-            <span className="ml-auto flex items-center gap-1 text-[9px] text-white/40">
-              <Mic className="size-2.5" />
-              {held ? "release when done" : "hold fn to talk"}
-            </span>
-          </div>
-          {lastUser && (
-            <p className="truncate text-[11px] text-white/60">
-              <span className="text-white/40">You: </span>
-              {lastUser.text}
-            </p>
-          )}
-          {lastAi && (
-            <p className="line-clamp-2 text-[11px] font-medium text-white">
-              <span className="text-primary">Sidekick: </span>
-              {lastAi.text}
-            </p>
-          )}
+    <div className="pointer-events-none absolute inset-x-0 top-20 z-30 flex justify-center">
+      <div className={cn("pointer-events-auto relative", haptic && "sidekick-haptic")}>
+        <div className="flex items-center gap-3 rounded-full bg-black/90 py-2.5 pl-3.5 pr-4 shadow-2xl shadow-black/70 backdrop-blur">
+          <KickLogo
+            className={cn(
+              "size-5 text-primary transition-transform",
+              isSpeaking && "animate-pulse",
+            )}
+          />
+          <span className="text-sm font-semibold text-white">{label}</span>
+          <Waveform active={connected} />
         </div>
+        <button
+          type="button"
+          onClick={() => void endSession()}
+          className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-white/25 text-white backdrop-blur hover:bg-white/40"
+          aria-label="End voice session"
+        >
+          <X className="size-3" />
+        </button>
       </div>
     </div>
   );

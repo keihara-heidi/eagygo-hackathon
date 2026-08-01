@@ -100,7 +100,7 @@ function OverlayLine({ event }: { event: StampedEvent }) {
 
 /**
  * Kick-mobile-style chat overlay: translucent lines over the camera feed,
- * newest at the bottom, fading out toward the top.
+ * pinned to the bottom of the phone, centered, fading out toward the top.
  */
 export function VoiceChatOverlay({ events }: { events: StampedEvent[] }) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -111,10 +111,10 @@ export function VoiceChatOverlay({ events }: { events: StampedEvent[] }) {
   }, [events]);
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-24 z-10 px-3">
+    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center px-6">
       <div
         ref={viewportRef}
-        className="flex max-h-64 flex-col gap-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_18%)]"
+        className="flex max-h-56 w-full max-w-[320px] flex-col items-center gap-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_22%)]"
       >
         {events.slice(-40).map((event) => (
           <OverlayLine key={event.seq} event={event} />
