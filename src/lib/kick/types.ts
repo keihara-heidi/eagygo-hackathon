@@ -188,11 +188,7 @@ export interface KickLivestreamUser {
   username: string;
 }
 
-export interface KickLivestreamCategory {
-  id: number;
-  name: string;
-  thumbnail: string;
-}
+export type KickLivestreamCategory = KickCategory;
 
 export interface KickLivestreamChannel {
   slug: string;

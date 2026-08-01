@@ -9,8 +9,8 @@
  * prototype — add them here if that changes.
  */
 
-import { KickApiError } from "./client";
-import type { FetchLike } from "./client";
+import { defaultFetch, parseResponse } from "./http";
+import type { FetchLike } from "./http";
 
 const DEFAULT_OAUTH_BASE_URL = "https://id.kick.com";
 
@@ -30,8 +30,12 @@ function base64UrlEncode(bytes: Uint8Array): string {
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 }
 
-export function generateState(byteLength = 16): string {
+function randomBase64Url(byteLength: number): string {
   return base64UrlEncode(crypto.getRandomValues(new Uint8Array(byteLength)));
+}
+
+export function generateState(byteLength = 16): string {
+  return randomBase64Url(byteLength);
 }
 
 export async function computeCodeChallenge(codeVerifier: string): Promise<string> {
@@ -40,7 +44,7 @@ export async function computeCodeChallenge(codeVerifier: string): Promise<string
 }
 
 export async function generatePkceChallenge(): Promise<PkceChallenge> {
-  const codeVerifier = generateState(32);
+  const codeVerifier = randomBase64Url(32);
   return {
     codeVerifier,
     codeChallenge: await computeCodeChallenge(codeVerifier),
@@ -95,26 +99,16 @@ export interface KickOAuthClientOptions {
   baseUrl?: string;
 }
 
-const defaultFetch: FetchLike = (input, init) => fetch(input, init);
-
 export function createOAuthClient(options: KickOAuthClientOptions) {
   const { clientId, clientSecret, fetch: fetchImpl = defaultFetch, baseUrl = DEFAULT_OAUTH_BASE_URL } =
     options;
 
-  async function postToken(form: Record<string, string>): Promise<KickTokenResponse> {
-    const res = await fetchImpl(`${baseUrl}/oauth/token`, {
+  function postToken(form: Record<string, string>): Promise<KickTokenResponse> {
+    return fetchImpl(`${baseUrl}/oauth/token`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams(form).toString(),
-    });
-    const body = (await res.json()) as { message?: string; error?: string };
-    if (!res.ok) {
-      throw new KickApiError(
-        res.status,
-        body.message ?? body.error ?? `KICK OAuth request failed with status ${res.status}`,
-      );
-    }
-    return body as KickTokenResponse;
+    }).then((res) => parseResponse<KickTokenResponse>(res));
   }
 
   return {

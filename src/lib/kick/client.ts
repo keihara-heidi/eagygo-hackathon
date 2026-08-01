@@ -1,12 +1,14 @@
 /**
  * KickClient — a thin, complete wrapper over the KICK Public API surface that
  * the hackathon options need. Auth is supplied as a token (OAuth lives at
- * id.kick.com and is out of scope here). `fetch` and `baseUrl` are injected,
- * which is the module's test seam: tests assert request shapes and envelope
- * handling without any network.
+ * id.kick.com — see oauth.ts). `fetch` and `baseUrl` are injected, which is
+ * the module's test seam: tests assert request shapes and envelope handling
+ * without any network.
  */
 
 import type { KickEventType } from "./events";
+import { defaultFetch, parseResponse } from "./http";
+import type { FetchLike } from "./http";
 import type {
   KickChannel,
   KickChannelReward,
@@ -28,30 +30,6 @@ import type {
 
 const DEFAULT_BASE_URL = "https://api.kick.com";
 
-/** Minimal structural subset of fetch — the real `fetch` is assignable to it. */
-export type FetchLike = (
-  input: string,
-  init?: {
-    method?: string;
-    headers?: Record<string, string>;
-    body?: string;
-  },
-) => Promise<{
-  ok: boolean;
-  status: number;
-  json(): Promise<unknown>;
-}>;
-
-export class KickApiError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message);
-    this.name = "KickApiError";
-  }
-}
-
 export interface KickClientOptions {
   token: string;
   fetch?: FetchLike;
@@ -60,7 +38,8 @@ export interface KickClientOptions {
 
 export interface KickPaginated<T> {
   data: T;
-  nextCursor: string;
+  /** Cursor for the next page, or null when there is none. */
+  nextCursor: string | null;
 }
 
 type QueryValue = string | number | Array<string | number> | undefined;
@@ -73,8 +52,6 @@ interface Envelope {
 interface PaginatedEnvelope extends Envelope {
   pagination?: { next_cursor?: string };
 }
-
-const defaultFetch: FetchLike = (input, init) => fetch(input, init);
 
 export function createKickClient(options: KickClientOptions) {
   const { token, fetch: fetchImpl = defaultFetch, baseUrl = DEFAULT_BASE_URL } = options;
@@ -92,12 +69,12 @@ export function createKickClient(options: KickClientOptions) {
     return url.toString();
   }
 
-  async function requestEnvelope(
+  function send(
     method: string,
     path: string,
     opts: { query?: Record<string, QueryValue>; body?: unknown } = {},
-  ): Promise<{ status: number; envelope: Envelope }> {
-    const res = await fetchImpl(buildUrl(path, opts.query), {
+  ) {
+    return fetchImpl(buildUrl(path, opts.query), {
       method,
       headers: {
         Authorization: `Bearer ${token}`,
@@ -106,17 +83,6 @@ export function createKickClient(options: KickClientOptions) {
       },
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     });
-
-    if (res.status === 204) return { status: res.status, envelope: {} };
-
-    const envelope = (await res.json()) as Envelope;
-    if (!res.ok) {
-      throw new KickApiError(
-        res.status,
-        envelope.message ?? `KICK API request failed with status ${res.status}`,
-      );
-    }
-    return { status: res.status, envelope };
   }
 
   async function req<T>(
@@ -124,7 +90,9 @@ export function createKickClient(options: KickClientOptions) {
     path: string,
     opts?: { query?: Record<string, QueryValue>; body?: unknown },
   ): Promise<T> {
-    const { envelope } = await requestEnvelope(method, path, opts);
+    const res = await send(method, path, opts);
+    if (res.status === 204) return undefined as T;
+    const envelope = await parseResponse<Envelope>(res);
     return envelope.data as T;
   }
 
@@ -132,11 +100,10 @@ export function createKickClient(options: KickClientOptions) {
     path: string,
     query?: Record<string, QueryValue>,
   ): Promise<KickPaginated<T>> {
-    const { envelope } = await requestEnvelope("GET", path, { query });
-    const paginated = envelope as PaginatedEnvelope;
+    const envelope = await parseResponse<PaginatedEnvelope>(await send("GET", path, { query }));
     return {
-      data: paginated.data as T,
-      nextCursor: paginated.pagination?.next_cursor ?? "",
+      data: envelope.data as T,
+      nextCursor: envelope.pagination?.next_cursor ?? null,
     };
   }
 

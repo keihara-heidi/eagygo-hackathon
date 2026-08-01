@@ -1,29 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { createKickClient, KickApiError } from "./client";
-import type { FetchLike } from "./client";
-
-interface RecordedCall {
-  url: string;
-  init: { method?: string; headers?: Record<string, string>; body?: string };
-}
-
-function stubFetch(
-  handler: (call: RecordedCall) => { status: number; body?: unknown },
-): { fetchImpl: FetchLike; calls: RecordedCall[] } {
-  const calls: RecordedCall[] = [];
-  const fetchImpl: FetchLike = async (input, init = {}) => {
-    const call: RecordedCall = { url: input, init };
-    calls.push(call);
-    const { status, body } = handler(call);
-    return {
-      ok: status >= 200 && status < 300,
-      status,
-      json: async () => body,
-    };
-  };
-  return { fetchImpl, calls };
-}
+import { createKickClient } from "./client";
+import { KickApiError } from "./http";
+import type { FetchLike } from "./http";
+import { stubFetch } from "./test-fetch";
 
 const client = (fetchImpl: FetchLike) => createKickClient({ token: "test-token", fetch: fetchImpl });
 

@@ -8,6 +8,7 @@
  */
 
 import type {
+  KickCategory,
   KickEmote,
   KickRedemptionStatus,
   KickUser,
@@ -43,13 +44,7 @@ export interface ChannelSubscriptionNewEvent {
   expires_at: string;
 }
 
-export interface ChannelSubscriptionRenewalEvent {
-  broadcaster: KickUser;
-  subscriber: KickUser;
-  duration: number;
-  created_at: string;
-  expires_at: string;
-}
+export type ChannelSubscriptionRenewalEvent = ChannelSubscriptionNewEvent;
 
 export interface ChannelSubscriptionGiftsEvent {
   broadcaster: KickUser;
@@ -88,11 +83,7 @@ export interface LivestreamMetadataUpdatedEvent {
     title: string;
     language: string;
     has_mature_content: boolean;
-    category: {
-      id: number;
-      name: string;
-      thumbnail: string;
-    };
+    category: KickCategory;
   };
 }
 
@@ -178,10 +169,12 @@ const KICK_EVENT_TYPES = [
 // adding it to KICK_EVENT_TYPES (and the parse switch below) fails the build.
 type MissingEventType = Exclude<KickEventType, (typeof KICK_EVENT_TYPES)[number]>;
 const _assertEventTypeListComplete: [MissingEventType] extends [never] ? true : never = true;
+void _assertEventTypeListComplete;
+
+const KICK_EVENT_TYPE_SET: ReadonlySet<string> = new Set(KICK_EVENT_TYPES);
 
 export function isKickEventType(value: string): value is KickEventType {
-  void _assertEventTypeListComplete;
-  return (KICK_EVENT_TYPES as readonly string[]).includes(value);
+  return KICK_EVENT_TYPE_SET.has(value);
 }
 
 function assertNever(value: never): never {
