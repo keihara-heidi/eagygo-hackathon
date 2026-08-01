@@ -17,7 +17,9 @@ KICK hackathon project. Brief: `chat-insights-engagement-brief.md`. Submission d
 
 ## Architecture
 
-One seam: the chat event stream. A mock event-stream adapter now, a KICK webhook-receiver adapter later — same interface. Deep modules behind the seam (signal extraction, loop/game state); thin surfaces at the edges (overlay, dashboard, chat-bot poster). The prototype runs fully client-side.
+Spec of record: `SPEC.md` (Sidekick — AI middleman for Kick chat), including the 2-minute demo script and the task split. Checkpoints: integration 2:00 PM, feature freeze 3:15 PM, final push 3:45 PM.
+
+One seam: the chat event stream. A mock chat-engine adapter now (scripted, docs-faithful events with demo controls), a KICK webhook-receiver adapter later — same interface. Behind the seam sits the Insight Engine as the deep module: rolling word/emote frequency buckets, question detection + similarity clustering, vibe classification, chatter identity tracking, answered-question store. It lives in Next.js server code (API routes); clients update via SSE or polling. Thin surfaces at the edges: viewer copilot widget (`/`), chat-native bot digest + `!answered` command, voice agent (`/voice`).
 
 ## The KICK module — `src/lib/kick/`
 
@@ -41,5 +43,6 @@ Wrapper over the KICK Public API. Types mirror https://docs.kick.com verbatim (s
 ## Working agreements
 
 - Keep explanations brief: pitch, pros/cons, "pick this if…"
-- Prototype direction is not yet chosen; the PRD will land as `PRD.md` in the repo root once it is
+- Direction is chosen (Sidekick) — `SPEC.md` is the spec of record; no separate PRD planned
+- Demo path is sacred: when time runs low, cut features, never the demo script
 - Domain resources: `RESOURCES.md`; teaching material: `lessons/`, `reference/`
