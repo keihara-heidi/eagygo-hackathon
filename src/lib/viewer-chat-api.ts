@@ -67,6 +67,7 @@ const TOOL_REQUESTS: Record<string, string> = {
   get_stream_context: "GET /api/insights/context",
   get_answered_questions: "GET /api/insights/answered",
   get_recent_chat: "chat-engine · recent messages",
+  get_transcript: "chat-engine · full transcript",
 };
 
 function summarizeToolOutput(toolName: string, output: unknown): string {
@@ -102,6 +103,13 @@ function summarizeToolOutput(toolName: string, output: unknown): string {
     case "get_recent_chat": {
       const { messages } = output as { messages: unknown[] };
       return `${messages.length} messages`;
+    }
+    case "get_transcript": {
+      const { messages, total_available } = output as {
+        messages: unknown[];
+        total_available: number;
+      };
+      return `${messages.length} of ${total_available} messages`;
     }
     default:
       return "done";
