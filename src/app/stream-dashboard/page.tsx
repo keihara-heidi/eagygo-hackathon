@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
-import { MessageSquare, Radio, Sparkles, Users } from "lucide-react";
+import { useMemo, useState, type FormEvent } from "react";
+import { Bot, MessageSquare, Radio, Send, Sparkles, Users, Wrench } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardAction,
@@ -19,6 +20,7 @@ import {
   TypographySmall,
 } from "@/components/ui/typography";
 import { useKickStreamEvents } from "@/hooks/use-kick-stream-events";
+import { useSidekickAgentChat } from "@/hooks/use-sidekick-agent-chat";
 import type { StampedEvent } from "@/lib/chat-engine/types";
 import { STREAM_INFO } from "@/lib/sidekick/personas";
 
@@ -290,6 +292,13 @@ async function triggerDemo(scenario: "hype_spike" | "question_flood" | "new_view
 // insight cues for the person live on stream, not a viewer copilot surface.
 export default function StreamDashboardPage() {
   const { events, connectionState } = useKickStreamEvents({ maxEvents: 160 });
+  const {
+    messages: agentMessages,
+    sendMessage: askAgent,
+    isPending: agentPending,
+    isError: agentError,
+  } = useSidekickAgentChat();
+  const [agentQuestion, setAgentQuestion] = useState("");
 
   const insights = useMemo(() => deriveInsights(events), [events]);
   const chatLines = useMemo(
@@ -300,6 +309,17 @@ export default function StreamDashboardPage() {
         .slice(-80),
     [events],
   );
+  const lastAgentAnswer = [...agentMessages]
+    .reverse()
+    .find((message) => message.role === "assistant");
+
+  function submitAgentQuestion(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const question = agentQuestion.trim();
+    if (!question || agentPending) return;
+    askAgent(question);
+    setAgentQuestion("");
+  }
 
   return (
     <main className="relative isolate h-dvh max-h-dvh overflow-hidden px-3 py-3">
@@ -369,6 +389,67 @@ export default function StreamDashboardPage() {
                 ))}
               </div>
             </section>
+          </CardContent>
+        </Card>
+
+        <Card size="sm" className="shrink-0 border-primary/20 bg-card/90 shadow-2xl shadow-black/30 backdrop-blur-sm">
+          <CardHeader className="gap-2 pb-2">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg uppercase">
+                <Bot className="size-5 text-primary" />
+                Ask Sidekick
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Same agent hook as viewer chat — tool calls included.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            <div className="min-h-16 rounded-xl border bg-background/70 p-3">
+              {lastAgentAnswer ? (
+                <div className="space-y-2">
+                  {lastAgentAnswer.toolCalls?.length ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {lastAgentAnswer.toolCalls.slice(0, 3).map((toolCall) => (
+                        <Badge key={`${lastAgentAnswer.id}-${toolCall.tool}`} variant="outline">
+                          <Wrench className="size-3" />
+                          {toolCall.tool}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
+                  <p className="line-clamp-3 text-sm leading-6">{lastAgentAnswer.content}</p>
+                </div>
+              ) : (
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Ask “what’s chat saying?” or “any questions I should answer?”
+                </p>
+              )}
+            </div>
+            <form className="flex gap-2" onSubmit={submitAgentQuestion}>
+              <Input
+                aria-label="Ask Sidekick"
+                className="h-9 bg-background/70"
+                disabled={agentPending}
+                onChange={(event) => setAgentQuestion(event.target.value)}
+                placeholder="Ask about vibe, questions, trends…"
+                value={agentQuestion}
+              />
+              <Button
+                aria-label="Ask Sidekick"
+                className="size-9 shrink-0"
+                disabled={agentPending || !agentQuestion.trim()}
+                size="icon"
+                type="submit"
+              >
+                <Send className="size-4" />
+              </Button>
+            </form>
+            {agentError ? (
+              <p className="text-xs text-destructive" role="alert">
+                Sidekick missed that — try again.
+              </p>
+            ) : null}
           </CardContent>
         </Card>
 

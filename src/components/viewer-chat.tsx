@@ -1,8 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, Sparkles, Wrench } from "lucide-react";
+import {
+  Gift,
+  LogOut,
+  MessageSquare,
+  Radio,
+  Sparkles,
+  UserPlus,
+  Wrench,
+  Zap,
+} from "lucide-react";
 
 import { ChatComposer } from "@/components/chat-composer";
 import { Button } from "@/components/ui/button";
@@ -20,19 +30,218 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
+import {
+  useKickStreamEvents,
+  type KickStreamConnectionState,
+} from "@/hooks/use-kick-stream-events";
 import { useSidekickAgentChat } from "@/hooks/use-sidekick-agent-chat";
+import type { StampedEvent } from "@/lib/chat-engine/types";
 import { streamContextQueryOptions } from "@/lib/viewer-chat-api";
 
 interface ViewerChatProps {
   username: string;
 }
 
+type KickActivityKind =
+  | "chat"
+  | "question"
+  | "follow"
+  | "sub"
+  | "gift"
+  | "sidekick"
+  | "system";
+
+interface KickActivity {
+  id: string;
+  kind: KickActivityKind;
+  label: string;
+  title: string;
+  detail: string;
+}
+
+function stripKickMarkup(content: string) {
+  return content.replace(/\[emote:[^:\]]+:([^\]]+)\]/g, ":$1:").trim();
+}
+
+function isQuestion(content: string) {
+  return /\?|^(what|whats|when|where|why|how|who|can|do|does|did|is|are|will|should)\b/i.test(
+    content.trim(),
+  );
+}
+
+function toKickActivity(wrapped: StampedEvent): KickActivity {
+  const id = String(wrapped.seq);
+  const { event } = wrapped;
+
+  switch (event.type) {
+    case "chat.message.sent": {
+      const content = stripKickMarkup(event.payload.content);
+      const fromSidekick = event.payload.sender.username === "Sidekick";
+      return {
+        id,
+        kind: fromSidekick ? "sidekick" : isQuestion(content) ? "question" : "chat",
+        label: fromSidekick ? "Sidekick" : isQuestion(content) ? "Question" : "Chat",
+        title: `@${event.payload.sender.username}`,
+        detail: content,
+      };
+    }
+    case "channel.followed":
+      return {
+        id,
+        kind: "follow",
+        label: "Follow",
+        title: `@${event.payload.follower.username}`,
+        detail: "joined the stream",
+      };
+    case "channel.subscription.new":
+    case "channel.subscription.renewal":
+      return {
+        id,
+        kind: "sub",
+        label: "Sub",
+        title: `@${event.payload.subscriber.username}`,
+        detail: `${event.payload.duration} month${event.payload.duration === 1 ? "" : "s"}`,
+      };
+    case "channel.subscription.gifts":
+      return {
+        id,
+        kind: "gift",
+        label: "Gift subs",
+        title: `@${event.payload.gifter.username}`,
+        detail: `${event.payload.giftees.length} gifted subs`,
+      };
+    case "kicks.gifted":
+      return {
+        id,
+        kind: "gift",
+        label: "Kicks",
+        title: `@${event.payload.sender.username}`,
+        detail: `${event.payload.gift.amount} kicks · ${event.payload.gift.message}`,
+      };
+    case "livestream.status.updated":
+      return {
+        id,
+        kind: "system",
+        label: "Stream",
+        title: event.payload.is_live ? "Went live" : "Ended",
+        detail: "KICK status update",
+      };
+    case "livestream.metadata.updated":
+      return {
+        id,
+        kind: "system",
+        label: "Stream",
+        title: "Title updated",
+        detail: event.payload.metadata.title,
+      };
+    case "moderation.banned":
+      return {
+        id,
+        kind: "system",
+        label: "Moderation",
+        title: `@${event.payload.banned_user.username}`,
+        detail: event.payload.metadata.reason,
+      };
+    case "channel.reward.redemption.updated":
+      return {
+        id,
+        kind: "gift",
+        label: "Reward",
+        title: `@${event.payload.redeemer.username}`,
+        detail: `${event.payload.reward.title}: ${event.payload.user_input}`,
+      };
+  }
+}
+
+function KickActivityIcon({ kind }: { kind: KickActivityKind }) {
+  const className = "size-3.5";
+  switch (kind) {
+    case "question":
+      return <Sparkles className={className} />;
+    case "follow":
+      return <UserPlus className={className} />;
+    case "sub":
+      return <Zap className={className} />;
+    case "gift":
+      return <Gift className={className} />;
+    case "sidekick":
+      return <Sparkles className={className} />;
+    case "system":
+      return <Radio className={className} />;
+    case "chat":
+      return <MessageSquare className={className} />;
+  }
+}
+
+function LiveKickActivityBar({
+  activities,
+  connectionState,
+  eventCount,
+}: {
+  activities: KickActivity[];
+  connectionState: KickStreamConnectionState;
+  eventCount: number;
+}) {
+  const live = connectionState === "live";
+
+  return (
+    <section className="shrink-0 border-b border-border/60 bg-background/75 px-4 py-3 backdrop-blur sm:px-6">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 lg:flex-row lg:items-center">
+        <div className="flex min-w-40 items-center gap-3">
+          <span className="grid size-9 place-items-center rounded-2xl border border-primary/25 bg-primary/10 text-primary">
+            <Radio className={live ? "size-4 animate-pulse" : "size-4"} />
+          </span>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
+              Live KICK context
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {live ? `${eventCount} events loaded` : connectionState}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 lg:pb-0">
+          {activities.length === 0 ? (
+            <div className="min-w-64 rounded-2xl border border-dashed bg-card/60 px-3 py-2 text-xs text-muted-foreground">
+              Waiting for live chat, follows, subs, and Kicks…
+            </div>
+          ) : (
+            activities.map((activity) => (
+              <article
+                key={activity.id}
+                className="min-w-64 rounded-2xl border bg-card/85 px-3 py-2 shadow-sm shadow-black/10"
+              >
+                <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+                  <KickActivityIcon kind={activity.kind} />
+                  {activity.label}
+                </div>
+                <p className="truncate text-xs font-semibold text-foreground">
+                  {activity.title}
+                </p>
+                <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                  {activity.detail}
+                </p>
+              </article>
+            ))
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function ViewerChat({ username }: ViewerChatProps) {
   const streamContext = useQuery(streamContextQueryOptions);
   const { messages, sendMessage, isPending, isError } = useSidekickAgentChat();
+  const { events: kickEvents, connectionState } = useKickStreamEvents({ maxEvents: 80 });
 
   const streamer = streamContext.data?.streamer;
   const hasMessages = messages.length > 0;
+  const kickActivities = useMemo(
+    () => kickEvents.slice(-4).reverse().map(toKickActivity),
+    [kickEvents],
+  );
 
   return (
     <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-background">
@@ -66,6 +275,12 @@ export function ViewerChat({ username }: ViewerChatProps) {
         </div>
       </header>
 
+      <LiveKickActivityBar
+        activities={kickActivities}
+        connectionState={connectionState}
+        eventCount={kickEvents.length}
+      />
+
       <main className="min-h-0 flex-1" aria-label="Sidekick conversation">
         <MessageScrollerProvider>
           <MessageScroller>
@@ -86,12 +301,25 @@ export function ViewerChat({ username }: ViewerChatProps) {
                       Catch up, decode chat, or ask what happened. Sidekick answers from recent
                       KICK chat context.
                     </p>
-                    <div className="mt-6 max-w-md rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-left text-xs text-muted-foreground">
-                      <div className="mb-1 flex items-center gap-2 font-semibold uppercase tracking-[0.18em] text-primary">
-                        <span className="size-1.5 rounded-full bg-primary" />
-                        Agent tool calls
+                    <div className="mt-6 grid max-w-xl gap-3 text-left sm:grid-cols-2">
+                      <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-muted-foreground">
+                        <div className="mb-1 flex items-center gap-2 font-semibold uppercase tracking-[0.18em] text-primary">
+                          <span className="size-1.5 rounded-full bg-primary" />
+                          Agent tool calls
+                        </div>
+                        <p>Ask a question to see the same tool calls the voice agent uses.</p>
                       </div>
-                      <p>Ask a question to see the same tool calls the voice agent uses.</p>
+                      <div className="rounded-2xl border bg-card/80 px-4 py-3 text-xs text-muted-foreground">
+                        <div className="mb-1 flex items-center gap-2 font-semibold uppercase tracking-[0.18em] text-primary">
+                          <Radio className="size-3" />
+                          Live Kick feed
+                        </div>
+                        <p className="line-clamp-2">
+                          {kickActivities[0]
+                            ? `${kickActivities[0].title}: ${kickActivities[0].detail}`
+                            : "Waiting for chat activity…"}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ) : (
