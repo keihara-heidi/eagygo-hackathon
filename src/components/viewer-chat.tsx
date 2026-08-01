@@ -391,13 +391,7 @@ export function ViewerChat({ username }: ViewerChatProps) {
   );
 
   return (
-    <div className="grid h-dvh min-h-0 grid-rows-2 overflow-hidden bg-background">
-      <LiveKickChat
-        connectionState={connectionState}
-        events={visibleKickEvents}
-        streamer={streamer ?? "hanvee"}
-      />
-      <section className="flex min-h-0 flex-col overflow-hidden border-t border-primary/40">
+    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-background">
       <header className="shrink-0 border-b bg-background">
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4 sm:px-6">
           <Link aria-label="Sidekick home" className="flex items-center" href="/">
@@ -440,6 +434,14 @@ export function ViewerChat({ username }: ViewerChatProps) {
         connectionState={connectionState}
         eventCount={visibleKickEvents.length}
       />
+
+      <div className="grid min-h-0 flex-1 grid-rows-2">
+      <LiveKickChat
+        connectionState={connectionState}
+        events={visibleKickEvents}
+        streamer={streamer ?? "hanvee"}
+      />
+      <section className="flex min-h-0 flex-col overflow-hidden border-t border-primary/40">
 
       <main className="min-h-0 flex-1" aria-label="Sidekick conversation">
         <MessageScrollerProvider>
@@ -563,6 +565,7 @@ export function ViewerChat({ username }: ViewerChatProps) {
         </div>
       </footer>
       </section>
+      </div>
     </div>
   );
 }
