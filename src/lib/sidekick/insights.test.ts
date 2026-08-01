@@ -299,6 +299,26 @@ describe("live channel context", () => {
     expect(insights.findAnswered("what is the score?")?.answer).toBe("6-4, 3-2");
   });
 
+  it("live answered recall quotes what chat actually said", () => {
+    const { engine, insights } = rig();
+    const kanel = makeUser(1_849_0228, "kaneljoseph");
+    engine.publish(
+      chatDelivery(makeUser(911, "q1"), "what is the score?", { broadcaster: kanel }),
+    );
+    engine.publish(
+      chatDelivery(makeUser(912, "q2"), "what is the match score?", { broadcaster: kanel }),
+    );
+    engine.publish(
+      chatDelivery(makeUser(913, "chatty"), "score is 6-4 right now", { broadcaster: kanel }),
+    );
+    const mod = makeUser(914, "real_mod_2", [{ text: "Moderator", type: "moderator" }]);
+    engine.publish(chatDelivery(mod, "!answered", { broadcaster: kanel }));
+
+    const answered = insights.questions().find((cluster) => cluster.answered);
+    expect(answered?.answer).toContain("6-4");
+    expect(answered?.answer).toContain("@chatty");
+  });
+
   it("live mode never recalls the cast's fabricated topic answers", () => {
     const { engine, insights } = rig();
     const kanel = makeUser(1_849_0228, "kaneljoseph");

@@ -346,7 +346,10 @@ export class InsightEngine {
     // Cast topic answers belong to the mock persona — over a real channel
     // they would fabricate facts about a streamer we've never profiled.
     if (this.liveBroadcaster) {
-      return "The streamer covered this on stream a moment ago.";
+      const heard = this.findInChat(cluster.representative, 1)[0];
+      return heard
+        ? `Chat heard: "${heard.content}" — @${heard.username}.`
+        : "The streamer covered this on stream a moment ago.";
     }
     for (const topic of QUESTION_TOPICS) {
       const topicTokens = questionTokens(topic.phrasings.join(" "));
@@ -362,6 +365,24 @@ export class InsightEngine {
       if (cluster.answered && overlap(tokens, cluster.tokens) >= 0.3) return cluster;
     }
     return null;
+  }
+
+  /**
+   * Most recent non-question chat lines overlapping a question — the raw
+   * material for live answers, where no curated answer store exists.
+   */
+  findInChat(question: string, limit = 2): { username: string; content: string }[] {
+    const tokens = questionTokens(question);
+    if (tokens.size === 0) return [];
+    const matches: { username: string; content: string }[] = [];
+    for (let i = this.messages.length - 1; i >= 0 && matches.length < limit; i -= 1) {
+      const message = this.messages[i];
+      if (!message || message.isQuestion) continue;
+      if (overlap(tokens, questionTokens(message.content)) >= 0.3) {
+        matches.push({ username: message.senderName, content: message.content });
+      }
+    }
+    return matches;
   }
 
   // -- queries ---------------------------------------------------------------
