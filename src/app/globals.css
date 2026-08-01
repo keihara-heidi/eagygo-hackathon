@@ -103,3 +103,39 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Sidekick voice — Dynamic Island animations */
+@keyframes sidekick-wave {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes sidekick-haptic {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(0.96) rotate(-0.6deg);
+  }
+  50% {
+    transform: scale(1.02) rotate(0.6deg);
+  }
+  75% {
+    transform: scale(0.99);
+  }
+}
+
+.sidekick-wave-bar {
+  animation: sidekick-wave 0.9s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.sidekick-haptic {
+  animation: sidekick-haptic 0.3s ease-in-out;
+}
