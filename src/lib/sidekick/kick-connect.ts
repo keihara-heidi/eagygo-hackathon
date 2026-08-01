@@ -10,7 +10,10 @@ import { createKickClient } from "@/lib/kick/client";
 import { KICK_EVENT_TYPES } from "@/lib/kick/events";
 import type { FetchLike } from "@/lib/kick/http";
 import { createOAuthClient } from "@/lib/kick/oauth";
-import type { KickEventSubscriptionResult } from "@/lib/kick/types";
+import type {
+  KickEventSubscription,
+  KickEventSubscriptionResult,
+} from "@/lib/kick/types";
 
 export interface KickConnectDeps {
   clientId: string;
@@ -33,6 +36,8 @@ export type ConnectKickChannelResult =
       broadcaster_user_id: number;
       channel: ConnectedChannelInfo;
       subscriptions: KickEventSubscriptionResult[];
+      existing_subscriptions: KickEventSubscription[];
+      deleted_subscription_count: number;
     }
   | { ok: false; status: number; error: string };
 
@@ -61,15 +66,29 @@ function buildClients(deps: KickConnectDeps) {
   };
 }
 
-/** Deletes every event subscription owned by this app. Returns the count. */
+/** Deletes every event subscription owned by this app. Returns what existed before deletion. */
 async function deleteAllSubscriptions(
   client: ReturnType<typeof createKickClient>,
-): Promise<number> {
+): Promise<KickEventSubscription[]> {
   const existing = await client.events.subscriptions.list();
+  console.info("[kick-connect] existing subscriptions listed", {
+    count: existing.length,
+    subscriptions: existing.map((subscription) => ({
+      id: subscription.id,
+      event: subscription.event,
+      version: subscription.version,
+      broadcasterUserId: subscription.broadcaster_user_id,
+      method: subscription.method,
+    })),
+  });
   if (existing.length > 0) {
     await client.events.subscriptions.delete(existing.map((sub) => sub.id));
+    console.info("[kick-connect] deleted existing subscriptions", {
+      count: existing.length,
+      ids: existing.map((subscription) => subscription.id),
+    });
   }
-  return existing.length;
+  return existing;
 }
 
 export async function connectKickChannel(
@@ -80,6 +99,7 @@ export async function connectKickChannel(
     return { ok: false, status: 400, error: "Invalid Kick channel slug" };
   }
 
+  console.info("[kick-connect] connect requested", { slug });
   const client = await buildClients(deps).kickClient();
 
   const channels = await client.channels.list({ slug: [slug] });
@@ -92,12 +112,28 @@ export async function connectKickChannel(
     };
   }
 
-  // Replace-don't-accumulate: this app tracks exactly one channel at a time.
-  await deleteAllSubscriptions(client);
+  console.info("[kick-connect] channel resolved", {
+    slug: channel.slug,
+    broadcasterUserId: channel.broadcaster_user_id,
+    isLive: channel.stream?.is_live ?? false,
+    viewerCount: channel.stream?.viewer_count ?? 0,
+  });
 
+  // Replace-don't-accumulate: this app tracks exactly one channel at a time.
+  const existingSubscriptions = await deleteAllSubscriptions(client);
+
+  const requestedEvents = KICK_EVENT_TYPES.map((name) => ({ name, version: 1 }));
+  console.info("[kick-connect] creating subscriptions", {
+    broadcasterUserId: channel.broadcaster_user_id,
+    events: requestedEvents,
+  });
   const subscriptions = await client.events.subscriptions.create({
     broadcaster_user_id: channel.broadcaster_user_id,
-    events: KICK_EVENT_TYPES.map((name) => ({ name, version: 1 })),
+    events: requestedEvents,
+  });
+  console.info("[kick-connect] create result", {
+    broadcasterUserId: channel.broadcaster_user_id,
+    subscriptions,
   });
 
   return {
@@ -112,6 +148,8 @@ export async function connectKickChannel(
       started_at: channel.stream?.is_live ? channel.stream.start_time : null,
     },
     subscriptions,
+    existing_subscriptions: existingSubscriptions,
+    deleted_subscription_count: existingSubscriptions.length,
   };
 }
 
@@ -120,5 +158,5 @@ export async function disconnectKickChannel(
 ): Promise<{ deleted: number }> {
   const client = await buildClients(deps).kickClient();
   const deleted = await deleteAllSubscriptions(client);
-  return { deleted };
+  return { deleted: deleted.length };
 }

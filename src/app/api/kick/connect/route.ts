@@ -52,6 +52,8 @@ export async function POST(request: Request) {
       broadcaster_user_id: result.broadcaster_user_id,
       channel: result.channel,
       subscriptions: result.subscriptions,
+      existing_subscriptions: result.existing_subscriptions,
+      deleted_subscription_count: result.deleted_subscription_count,
     });
   } catch (error) {
     console.error("[kick-connect] connect failed:", error);

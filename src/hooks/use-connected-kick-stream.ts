@@ -103,7 +103,20 @@ interface ConnectRouteResponse {
     viewer_count: number;
     started_at: string | null;
   };
-  subscriptions: Array<{ subscription_id?: string }>;
+  subscriptions: Array<{
+    name?: string;
+    version?: number;
+    subscription_id?: string;
+    error?: string;
+  }>;
+  existing_subscriptions: Array<{
+    id: string;
+    event: string;
+    version: number;
+    broadcaster_user_id: number;
+    method: string;
+  }>;
+  deleted_subscription_count: number;
 }
 
 export function useConnectedKickStream() {
@@ -127,6 +140,12 @@ export function useConnectedKickStream() {
     try {
       const { data } = await apiClient.post<ConnectRouteResponse>("/kick/connect", {
         slug: parsed.slug,
+      });
+      console.info("[kick-connect-ui] subscription payload", {
+        broadcasterUserId: data.broadcaster_user_id,
+        existingSubscriptions: data.existing_subscriptions,
+        deletedSubscriptionCount: data.deleted_subscription_count,
+        createdSubscriptions: data.subscriptions,
       });
       connected = {
         ...parsed,
