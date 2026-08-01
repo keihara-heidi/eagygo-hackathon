@@ -148,6 +148,9 @@ export class InsightEngine {
   >();
   private readonly followers: { name: string; at: number }[] = [];
   private readonly notable: { text: string; at: number }[] = [];
+  /** Real channel observed in message broadcasters — set when chat isn't mock. */
+  private liveBroadcaster: { username: string; slug: string; firstSeenAt: number } | null =
+    null;
   private readonly startedAt = Date.now();
 
   // -- ingest ---------------------------------------------------------------
@@ -180,6 +183,25 @@ export class InsightEngine {
 
   private handleChat(payload: ChatMessageEvent) {
     if (payload.sender.user_id === SIDEKICK_BOT.user_id) return;
+
+    // Real chat carries the real channel in the broadcaster field; the mock
+    // cast always broadcasts as STREAMER. Switching channels (or back to the
+    // mock) resets every window so stale clusters and trends never bleed
+    // across contexts.
+    const broadcasterSlug = payload.broadcaster.channel_slug;
+    if (broadcasterSlug === STREAMER.channel_slug) {
+      if (this.liveBroadcaster) {
+        this.liveBroadcaster = null;
+        this.resetWindows();
+      }
+    } else if (this.liveBroadcaster?.slug !== broadcasterSlug) {
+      this.liveBroadcaster = {
+        username: payload.broadcaster.username,
+        slug: broadcasterSlug,
+        firstSeenAt: Date.now(),
+      };
+      this.resetWindows();
+    }
 
     const badges = payload.sender.identity?.badges ?? [];
     const isMod = badges.some((badge) => badge.type === "moderator");
@@ -225,17 +247,38 @@ export class InsightEngine {
     if (isQuestion) this.assignToCluster(payload);
   }
 
-  /** `!answered` from a mod or the streamer resolves the hottest digested cluster. */
+  /** Drops all rolling state — called on channel transitions only. */
+  private resetWindows() {
+    this.messages.length = 0;
+    this.clusters.clear();
+    this.firstSeen.clear();
+    this.senderMeta.clear();
+    this.followers.length = 0;
+    this.notable.length = 0;
+  }
+
+  /** `!answered [answer]` — resolves the hottest open cluster; the spoken text becomes the recall payload. */
   private handleCommand(payload: ChatMessageEvent, isMod: boolean): boolean {
-    const text = payload.content.trim().toLowerCase();
-    if (!text.startsWith("!answered")) return false;
-    const canResolve = isMod || payload.sender.user_id === STREAMER.user_id;
+    const text = payload.content.trim();
+    if (!text.toLowerCase().startsWith("!answered")) return false;
+    // Mods, the mock streamer (demo), or the live channel's owner — the last
+    // is derivable from real payloads, so real streamers can resolve too.
+    const canResolve =
+      isMod ||
+      payload.sender.user_id === STREAMER.user_id ||
+      payload.sender.user_id === payload.broadcaster.user_id;
     if (!canResolve) return true;
+
+    const spokenAnswer = text
+      .slice("!answered".length)
+      .trim()
+      .replace(/^[:;-]\s*/, "");
 
     const target = [...this.clusters.values()]
       .filter((cluster) => !cluster.answered)
       .sort((a, b) => Number(b.digested) - Number(a.digested) || b.count - a.count)[0];
-    if (target) this.markAnswered(target.id);
+    if (target)
+      this.markAnswered(target.id, spokenAnswer.length > 0 ? spokenAnswer : undefined);
     return true;
   }
 
@@ -290,16 +333,21 @@ export class InsightEngine {
     );
   }
 
-  markAnswered(clusterId: string): QuestionCluster | null {
+  markAnswered(clusterId: string, answer?: string): QuestionCluster | null {
     const cluster = this.clusters.get(clusterId);
     if (!cluster) return null;
     cluster.answered = true;
     cluster.answered_at = new Date().toISOString();
-    cluster.answer = this.answerFor(cluster);
+    cluster.answer = answer ?? this.answerFor(cluster);
     return cluster;
   }
 
   private answerFor(cluster: InternalCluster): string {
+    // Cast topic answers belong to the mock persona — over a real channel
+    // they would fabricate facts about a streamer we've never profiled.
+    if (this.liveBroadcaster) {
+      return "The streamer covered this on stream a moment ago.";
+    }
     for (const topic of QUESTION_TOPICS) {
       const topicTokens = questionTokens(topic.phrasings.join(" "));
       if (overlap(cluster.tokens, topicTokens) >= 0.3) return topic.answer;
@@ -456,6 +504,25 @@ export class InsightEngine {
   }
 
   context(): StreamContext {
+    const live = this.liveBroadcaster;
+    if (live) {
+      // Observed channel, honest placeholders: title/category/viewer count
+      // don't arrive over chat ingest, so don't fabricate them. The primer
+      // tells the agent not to invent biography.
+      const windowStart = Date.now() - 10 * 60_000;
+      const active = new Set<number>();
+      for (const message of this.messages) {
+        if (message.at >= windowStart) active.add(message.senderId);
+      }
+      return {
+        streamer: live.username,
+        title: "Live on KICK",
+        category: "Live",
+        uptime_minutes: Math.max(1, Math.floor((Date.now() - live.firstSeenAt) / 60_000)),
+        viewer_count: active.size,
+        streamer_primer: `${live.username} is live on KICK and Sidekick is watching their chat in real time. No stored profile for this channel — answer from chat data, don't invent biography.`,
+      };
+    }
     return {
       streamer: STREAMER.username,
       title: STREAM_INFO.title,

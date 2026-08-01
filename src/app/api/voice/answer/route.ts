@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getFastSidekickAgent } from "@/lib/sidekick/agent";
+import { getSidekickAgent } from "@/lib/sidekick/agent";
 import { maskSpeech } from "@/lib/sidekick/clean-speech";
 import { postVoiceBriefing } from "@/lib/sidekick/voice-briefing";
 
@@ -15,6 +15,8 @@ const RECAP_PATTERN = /recap|catch me up|catch up|what did i miss|missed/i;
 const PROMPT_LEAK_PATTERN =
   /\b(?:the user (?:wants|asked)|i need to|system prompt|instructions?|under \d+ words|never (?:add|speak)|let me (?:compress|rewrite)|output only)\b/i;
 const NUMBERED_LIST_PATTERN = /(?:^|\s)\d+\.\s/;
+const VIEWER_HANDLES_PATTERN =
+  /@[a-z0-9_]+(?:\s*,\s*@[a-z0-9_]+)*(?:\s*,?\s+and\s+@[a-z0-9_]+)?/gi;
 
 /**
  * Keeps model reasoning and prompt echoes away from TTS, then trims only at a
@@ -22,13 +24,17 @@ const NUMBERED_LIST_PATTERN = /(?:^|\s)\d+\.\s/;
  */
 function cleanSpokenAnswer(text: string, question: string): string | null {
   const recap = RECAP_PATTERN.test(question);
+  const maxSentences = recap ? 3 : 2;
   const maxWords = recap ? 90 : 60;
   const paragraphs = text
     .split(/\n{2,}/)
     .map((part) => part.replace(/\s+/g, " ").trim())
     .filter(Boolean);
-  const candidate =
+  const rawCandidate =
     [...paragraphs].reverse().find((part) => !PROMPT_LEAK_PATTERN.test(part)) ?? "";
+  const candidate = rawCandidate.replace(VIEWER_HANDLES_PATTERN, (handles) =>
+    (handles.match(/@/g)?.length ?? 0) > 1 ? "viewers" : "a viewer",
+  );
   const quoteCount = (candidate.match(/"/g) ?? []).length;
   if (
     !candidate ||
@@ -40,8 +46,14 @@ function cleanSpokenAnswer(text: string, question: string): string | null {
     return null;
   }
 
-  const words = candidate.split(/\s+/);
-  if (words.length <= maxWords) return candidate;
+  const sentences =
+    candidate.match(/[^.!?]+(?:[.!?]+["']?)(?=\s|$)|[^.!?]+$/g)?.map((part) => part.trim()) ??
+    [];
+  const spoken = sentences.slice(0, maxSentences).join(" ").trim();
+  if (!spoken) return null;
+
+  const words = spoken.split(/\s+/);
+  if (words.length <= maxWords) return spoken;
 
   const window = words.slice(0, maxWords).join(" ");
   const boundary = Math.max(window.lastIndexOf("."), window.lastIndexOf("!"), window.lastIndexOf("?"));
@@ -78,13 +90,16 @@ export async function POST(request: Request) {
     void postVoiceBriefing().catch(() => {});
   }
 
-  const agent = getFastSidekickAgent();
+  const agent = getSidekickAgent();
   let answer: string;
   let source = "scripted";
 
   if (agent) {
     try {
-      const result = await agent.generate({ prompt: question });
+      const result = await agent.generate({
+        prompt: question,
+        options: { responseMode: "voice" },
+      });
       const cleaned = cleanSpokenAnswer(result.text, question);
       if (cleaned) {
         answer = cleaned;
