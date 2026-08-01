@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { MessageSquare, Radio, Sparkles, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -18,8 +18,9 @@ import {
   TypographyMuted,
   TypographySmall,
 } from "@/components/ui/typography";
+import { useKickStreamEvents } from "@/hooks/use-kick-stream-events";
+import type { StampedEvent } from "@/lib/chat-engine/types";
 import { STREAM_INFO } from "@/lib/sidekick/personas";
-import type { SidekickEvent } from "@/lib/sidekick/types";
 
 const MESSAGE_WINDOW_MS = 60_000;
 const INSIGHT_WINDOW_MS = 5 * 60_000;
@@ -71,8 +72,6 @@ const STOP_WORDS = new Set([
   "lol",
 ]);
 
-type ConnectionState = "connecting" | "live" | "reconnecting";
-
 type ChatLine = {
   id: string;
   author: string;
@@ -82,8 +81,8 @@ type ChatLine = {
   color?: string;
 };
 
-type ChatMessageSidekickEvent = SidekickEvent & {
-  event: Extract<SidekickEvent["event"], { type: "chat.message.sent" }>;
+type ChatMessageStreamEvent = StampedEvent & {
+  event: Extract<StampedEvent["event"], { type: "chat.message.sent" }>;
 };
 
 function stripKickMarkup(content: string) {
@@ -98,7 +97,7 @@ function formatTime(timestamp: string) {
   }).format(new Date(timestamp));
 }
 
-function isChatMessageEvent(event: SidekickEvent): event is ChatMessageSidekickEvent {
+function isChatMessageEvent(event: StampedEvent): event is ChatMessageStreamEvent {
   return event.event.type === "chat.message.sent";
 }
 
@@ -125,13 +124,14 @@ function questionClusterFor(content: string) {
   );
 }
 
-function toChatLine(wrapped: SidekickEvent): ChatLine {
+function toChatLine(wrapped: StampedEvent): ChatLine {
   const { event } = wrapped;
+  const id = String(wrapped.seq);
 
   switch (event.type) {
     case "chat.message.sent":
       return {
-        id: wrapped.id,
+        id,
         author: event.payload.sender.username,
         content: stripKickMarkup(event.payload.content),
         timestamp: event.payload.created_at,
@@ -140,7 +140,7 @@ function toChatLine(wrapped: SidekickEvent): ChatLine {
       };
     case "channel.followed":
       return {
-        id: wrapped.id,
+        id,
         author: "Sidekick",
         content: `${event.payload.follower.username} followed the channel. Say hi when there is a lull.`,
         timestamp: wrapped.received_at,
@@ -149,7 +149,7 @@ function toChatLine(wrapped: SidekickEvent): ChatLine {
     case "channel.subscription.new":
     case "channel.subscription.renewal":
       return {
-        id: wrapped.id,
+        id,
         author: "Sidekick",
         content: `${event.payload.subscriber.username} subscribed for ${event.payload.duration} month${event.payload.duration === 1 ? "" : "s"}.`,
         timestamp: event.payload.created_at,
@@ -157,7 +157,7 @@ function toChatLine(wrapped: SidekickEvent): ChatLine {
       };
     case "channel.subscription.gifts":
       return {
-        id: wrapped.id,
+        id,
         author: "Sidekick",
         content: `${event.payload.gifter.username} gifted ${event.payload.giftees.length} subs.`,
         timestamp: event.payload.created_at,
@@ -165,7 +165,7 @@ function toChatLine(wrapped: SidekickEvent): ChatLine {
       };
     case "kicks.gifted":
       return {
-        id: wrapped.id,
+        id,
         author: "Sidekick",
         content: `${event.payload.sender.username} sent ${event.payload.gift.amount} kicks: ${event.payload.gift.message}`,
         timestamp: event.payload.created_at,
@@ -173,7 +173,7 @@ function toChatLine(wrapped: SidekickEvent): ChatLine {
       };
     case "livestream.status.updated":
       return {
-        id: wrapped.id,
+        id,
         author: "Sidekick",
         content: event.payload.is_live ? "Stream went live." : "Stream ended.",
         timestamp: event.payload.started_at,
@@ -181,7 +181,7 @@ function toChatLine(wrapped: SidekickEvent): ChatLine {
       };
     case "livestream.metadata.updated":
       return {
-        id: wrapped.id,
+        id,
         author: "Sidekick",
         content: `Stream updated: ${event.payload.metadata.title}`,
         timestamp: wrapped.received_at,
@@ -189,7 +189,7 @@ function toChatLine(wrapped: SidekickEvent): ChatLine {
       };
     case "moderation.banned":
       return {
-        id: wrapped.id,
+        id,
         author: "Mod action",
         content: `${event.payload.banned_user.username} was banned: ${event.payload.metadata.reason}`,
         timestamp: event.payload.metadata.created_at,
@@ -197,7 +197,7 @@ function toChatLine(wrapped: SidekickEvent): ChatLine {
       };
     case "channel.reward.redemption.updated":
       return {
-        id: wrapped.id,
+        id,
         author: "Reward",
         content: `${event.payload.redeemer.username} redeemed ${event.payload.reward.title}: ${event.payload.user_input}`,
         timestamp: event.payload.redeemed_at,
@@ -206,7 +206,7 @@ function toChatLine(wrapped: SidekickEvent): ChatLine {
   }
 }
 
-function deriveInsights(events: SidekickEvent[]) {
+function deriveInsights(events: StampedEvent[]) {
   const now = Date.now();
   const recent = events.filter(
     (event) => now - new Date(event.received_at).getTime() <= INSIGHT_WINDOW_MS,
@@ -278,33 +278,18 @@ function deriveInsights(events: SidekickEvent[]) {
   };
 }
 
-async function triggerDemo(action: "hype" | "question_flood" | "new_viewer") {
-  await fetch("/api/demo/trigger", {
+async function triggerDemo(scenario: "hype_spike" | "question_flood" | "new_viewer") {
+  await fetch("/api/demo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action }),
+    body: JSON.stringify({ action: "trigger", scenario }),
   });
 }
 
 // Streamer-facing control room: this page is intentionally read-only chat +
 // insight cues for the person live on stream, not a viewer copilot surface.
 export default function StreamDashboardPage() {
-  const [events, setEvents] = useState<SidekickEvent[]>([]);
-  const [connectionState, setConnectionState] = useState<ConnectionState>("connecting");
-
-  useEffect(() => {
-    const source = new EventSource("/api/stream/events");
-
-    source.onopen = () => setConnectionState("live");
-    source.onerror = () => setConnectionState("reconnecting");
-    source.onmessage = (message) => {
-      const incoming = JSON.parse(message.data) as SidekickEvent;
-      setEvents((current) => [...current, incoming].slice(-160));
-      setConnectionState("live");
-    };
-
-    return () => source.close();
-  }, []);
+  const { events, connectionState } = useKickStreamEvents({ maxEvents: 160 });
 
   const insights = useMemo(() => deriveInsights(events), [events]);
   const chatLines = useMemo(
@@ -353,7 +338,7 @@ export default function StreamDashboardPage() {
             <CardAction className="col-start-1 row-start-auto flex flex-wrap gap-1.5 justify-self-start">
               <Button size="sm" variant="outline" onClick={() => void triggerDemo("new_viewer")}>New viewer</Button>
               <Button size="sm" variant="outline" onClick={() => void triggerDemo("question_flood")}>Question flood</Button>
-              <Button size="sm" onClick={() => void triggerDemo("hype")}>Hype spike</Button>
+              <Button size="sm" onClick={() => void triggerDemo("hype_spike")}>Hype spike</Button>
             </CardAction>
           </CardHeader>
           <CardContent className="grid gap-3">

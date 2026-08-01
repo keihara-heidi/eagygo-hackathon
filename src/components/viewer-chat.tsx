@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { LogOut, Sparkles } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { LogOut, Sparkles, Wrench } from "lucide-react";
 
 import { ChatComposer } from "@/components/chat-composer";
 import { Button } from "@/components/ui/button";
@@ -21,36 +20,16 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
-import { askCopilot, streamContextQueryOptions } from "@/lib/viewer-chat-api";
+import { useSidekickAgentChat } from "@/hooks/use-sidekick-agent-chat";
+import { streamContextQueryOptions } from "@/lib/viewer-chat-api";
 
 interface ViewerChatProps {
   username: string;
 }
 
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
-
 export function ViewerChat({ username }: ViewerChatProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const streamContext = useQuery(streamContextQueryOptions);
-  const ask = useMutation({
-    mutationFn: askCopilot,
-    onMutate: (question) => {
-      setMessages((current) => [
-        ...current,
-        { id: crypto.randomUUID(), role: "user", content: question },
-      ]);
-    },
-    onSuccess: (response) => {
-      setMessages((current) => [
-        ...current,
-        { id: crypto.randomUUID(), role: "assistant", content: response.answer },
-      ]);
-    },
-  });
+  const { messages, sendMessage, isPending, isError } = useSidekickAgentChat();
 
   const streamer = streamContext.data?.streamer;
   const hasMessages = messages.length > 0;
@@ -95,7 +74,7 @@ export function ViewerChat({ username }: ViewerChatProps) {
                 aria-live="polite"
                 className="mx-auto w-full max-w-3xl px-4 pb-8 pt-6 sm:px-6 sm:pt-10"
               >
-                {!hasMessages && !ask.isPending ? (
+                {!hasMessages && !isPending ? (
                   <div className="flex min-h-[calc(100dvh-15rem)] flex-col items-center justify-center text-center">
                     <span className="mb-5 grid size-12 place-items-center rounded-2xl border border-primary/25 bg-primary/10 text-primary">
                       <Sparkles className="size-6" />
@@ -107,13 +86,20 @@ export function ViewerChat({ username }: ViewerChatProps) {
                       Catch up, decode chat, or ask what happened. Sidekick answers from recent
                       KICK chat context.
                     </p>
+                    <div className="mt-6 max-w-md rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-left text-xs text-muted-foreground">
+                      <div className="mb-1 flex items-center gap-2 font-semibold uppercase tracking-[0.18em] text-primary">
+                        <span className="size-1.5 rounded-full bg-primary" />
+                        Agent tool calls
+                      </div>
+                      <p>Ask a question to see the same tool calls the voice agent uses.</p>
+                    </div>
                   </div>
                 ) : (
                   <MessageGroup className="gap-7">
                     {messages.map((message, index) => (
                       <MessageScrollerItem
                         key={message.id}
-                        scrollAnchor={index === messages.length - 1 && !ask.isPending}
+                        scrollAnchor={index === messages.length - 1 && !isPending}
                       >
                         <Message align={message.role === "user" ? "end" : "start"}>
                           {message.role === "assistant" && (
@@ -128,6 +114,18 @@ export function ViewerChat({ username }: ViewerChatProps) {
                                 : "max-w-[calc(100%-2.5rem)] pt-1"
                             }
                           >
+                            {message.role === "assistant" && message.toolCalls?.length ? (
+                              <div className="mb-3 space-y-1 rounded-2xl border border-primary/20 bg-primary/5 p-3 font-mono text-[11px] text-muted-foreground">
+                                {message.toolCalls.map((toolCall) => (
+                                  <div key={`${message.id}-${toolCall.tool}`} className="flex gap-2">
+                                    <Wrench className="mt-0.5 size-3 shrink-0 text-primary" />
+                                    <span>
+                                      {toolCall.tool} → {toolCall.summary}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
                             <p className="whitespace-pre-wrap text-[15px] leading-7">
                               {message.content}
                             </p>
@@ -136,7 +134,7 @@ export function ViewerChat({ username }: ViewerChatProps) {
                       </MessageScrollerItem>
                     ))}
 
-                    {ask.isPending && (
+                    {isPending && (
                       <MessageScrollerItem scrollAnchor>
                         <Message>
                           <MessageAvatar className="size-8 self-start bg-primary text-primary-foreground">
@@ -163,8 +161,8 @@ export function ViewerChat({ username }: ViewerChatProps) {
 
       <footer className="shrink-0 bg-gradient-to-t from-background via-background to-background/0 px-4 pb-4 pt-2 sm:px-6 sm:pb-6">
         <div className="mx-auto w-full max-w-3xl">
-          <ChatComposer disabled={ask.isPending} onSend={(message) => ask.mutate(message)} />
-          {ask.isError ? (
+          <ChatComposer disabled={isPending} onSend={sendMessage} />
+          {isError ? (
             <p className="mt-2 text-center text-xs text-destructive" role="alert">
               Couldn&apos;t get a response. Try again.
             </p>
