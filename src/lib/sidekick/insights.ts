@@ -148,6 +148,9 @@ export class InsightEngine {
   >();
   private readonly followers: { name: string; at: number }[] = [];
   private readonly notable: { text: string; at: number }[] = [];
+  /** Real channel observed in message broadcasters — set when chat isn't mock. */
+  private liveBroadcaster: { username: string; slug: string; firstSeenAt: number } | null =
+    null;
   private readonly startedAt = Date.now();
 
   // -- ingest ---------------------------------------------------------------
@@ -180,6 +183,20 @@ export class InsightEngine {
 
   private handleChat(payload: ChatMessageEvent) {
     if (payload.sender.user_id === SIDEKICK_BOT.user_id) return;
+
+    // Real chat carries the real channel in the broadcaster field; the mock
+    // cast always broadcasts as STREAMER. First non-mock broadcaster flips
+    // the stream context from persona to observed reality.
+    const broadcasterSlug = payload.broadcaster.channel_slug;
+    if (broadcasterSlug !== STREAMER.channel_slug) {
+      if (!this.liveBroadcaster || this.liveBroadcaster.slug !== broadcasterSlug) {
+        this.liveBroadcaster = {
+          username: payload.broadcaster.username,
+          slug: broadcasterSlug,
+          firstSeenAt: Date.now(),
+        };
+      }
+    }
 
     const badges = payload.sender.identity?.badges ?? [];
     const isMod = badges.some((badge) => badge.type === "moderator");
@@ -456,6 +473,25 @@ export class InsightEngine {
   }
 
   context(): StreamContext {
+    const live = this.liveBroadcaster;
+    if (live) {
+      // Observed channel, honest placeholders: title/category/viewer count
+      // don't arrive over chat ingest, so don't fabricate them. The primer
+      // tells the agent not to invent biography.
+      const windowStart = Date.now() - 10 * 60_000;
+      const active = new Set<number>();
+      for (const message of this.messages) {
+        if (message.at >= windowStart) active.add(message.senderId);
+      }
+      return {
+        streamer: live.username,
+        title: "Live on KICK",
+        category: "Live",
+        uptime_minutes: Math.max(1, Math.floor((Date.now() - live.firstSeenAt) / 60_000)),
+        viewer_count: active.size,
+        streamer_primer: `${live.username} is live on KICK and Sidekick is watching their chat in real time. No stored profile for this channel — answer from chat data, don't invent biography.`,
+      };
+    }
     return {
       streamer: STREAMER.username,
       title: STREAM_INFO.title,
