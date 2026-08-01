@@ -23,6 +23,8 @@ export interface ConnectedChannelInfo {
   stream_title: string;
   category: string;
   is_live: boolean;
+  viewer_count: number;
+  started_at: string | null;
 }
 
 export type ConnectKickChannelResult =
@@ -106,6 +108,8 @@ export async function connectKickChannel(
       stream_title: channel.stream_title,
       category: channel.category?.name ?? "",
       is_live: channel.stream?.is_live ?? false,
+      viewer_count: channel.stream?.viewer_count ?? 0,
+      started_at: channel.stream?.is_live ? channel.stream.start_time : null,
     },
     subscriptions,
   };

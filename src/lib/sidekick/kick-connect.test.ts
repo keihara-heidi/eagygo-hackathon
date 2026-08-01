@@ -78,7 +78,14 @@ describe("connectKickChannel", () => {
     expect(result).toMatchObject({
       ok: true,
       broadcaster_user_id: 987654,
-      channel: { slug: "orbitfps", stream_title: "Ranked grind", category: "Just Chatting", is_live: true },
+      channel: {
+        slug: "orbitfps",
+        stream_title: "Ranked grind",
+        category: "Just Chatting",
+        is_live: true,
+        viewer_count: 123,
+        started_at: "2025-01-01T00:00:00Z",
+      },
     });
 
     const [token, lookup, list, del, create] = calls;
