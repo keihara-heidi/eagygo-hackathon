@@ -122,11 +122,11 @@ function recallOrFlag(insights: InsightEngine, question: string): CopilotRespons
   if (answered) {
     return {
       intent: "answered_recall",
-      answer: `Good news — OrbitFPS covered this ${minutesAgo(answered.last_asked_at)}: ${answered.answer}`,
+      answer: `Good news — OrbitFPS covered this ${minutesAgo(answered.answered_at ?? answered.last_asked_at)}: ${answered.answer}`,
       tool_calls: [
         {
           tool: "get_answered_questions",
-          request: "GET /api/insights/questions",
+          request: "GET /api/insights/answered",
           summary: `matched "${answered.representative}" (asked ${answered.count}x)`,
         },
       ],

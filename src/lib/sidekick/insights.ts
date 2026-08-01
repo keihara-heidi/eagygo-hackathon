@@ -32,6 +32,7 @@ export interface QuestionCluster {
   first_asked_at: string;
   last_asked_at: string;
   answered: boolean;
+  answered_at: string | null;
   answer: string | null;
   digested: boolean;
 }
@@ -270,6 +271,7 @@ export class InsightEngine {
       first_asked_at: now,
       last_asked_at: now,
       answered: false,
+      answered_at: null,
       answer: null,
       digested: false,
       tokens,
@@ -292,6 +294,7 @@ export class InsightEngine {
     const cluster = this.clusters.get(clusterId);
     if (!cluster) return null;
     cluster.answered = true;
+    cluster.answered_at = new Date().toISOString();
     cluster.answer = this.answerFor(cluster);
     return cluster;
   }
