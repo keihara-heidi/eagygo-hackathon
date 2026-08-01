@@ -32,12 +32,24 @@ export function GET(request: NextRequest) {
 
   const stream = new ReadableStream({
     start(controller) {
+      let sentCount = 0;
+      let filteredCount = 0;
       const send = (event: StampedEvent) => {
         if (
           broadcasterUserId !== undefined &&
           broadcasterUserIdFor(event) !== broadcasterUserId
         ) {
+          filteredCount += 1;
           return;
+        }
+        sentCount += 1;
+        if (sentCount <= 5 || sentCount % 25 === 0) {
+          console.info("[stream-sse] sending event", {
+            seq: event.seq,
+            eventType: event.event.type,
+            broadcasterUserId: broadcasterUserIdFor(event),
+            sentCount,
+          });
         }
         controller.enqueue(
           encoder.encode(`id: ${event.seq}\ndata: ${JSON.stringify(event)}\n\n`),
@@ -50,12 +62,18 @@ export function GET(request: NextRequest) {
           ? lastEventId + 1
           : engine.getRecent()[0]?.seq);
 
+      console.info("[stream-sse] connected", { fromSeq, broadcasterUserId });
       const unsubscribe = engine.subscribe(send, { fromSeq });
       const heartbeat = setInterval(() => {
         controller.enqueue(encoder.encode(": ping\n\n"));
       }, HEARTBEAT_MS);
 
       request.signal.addEventListener("abort", () => {
+        console.info("[stream-sse] disconnected", {
+          broadcasterUserId,
+          sentCount,
+          filteredCount,
+        });
         clearInterval(heartbeat);
         unsubscribe();
         controller.close();

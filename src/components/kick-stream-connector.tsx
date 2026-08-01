@@ -53,6 +53,7 @@ export function KickStreamConnector({ className }: KickStreamConnectorProps) {
 
     setIsConnecting(true);
     setError(null);
+    console.info("[kick-connect-ui] connecting", { slug: parsed.slug });
     try {
       const response = await apiClient.post<KickStreamConnectResponse>(
         "/kick/streams/connect",
@@ -69,9 +70,18 @@ export function KickStreamConnector({ className }: KickStreamConnectorProps) {
         viewerCount: response.data.stream.viewer_count,
       });
       setError(result.ok ? null : result.error);
-      if (result.ok) setValue(result.stream.url);
+      if (result.ok) {
+        console.info("[kick-connect-ui] connected", {
+          slug: result.stream.slug,
+          broadcasterUserId: result.stream.broadcasterUserId,
+          viewerCount: result.stream.viewerCount,
+        });
+        setValue(result.stream.url);
+      }
     } catch (caught) {
-      setError(errorMessage(caught));
+      const message = errorMessage(caught);
+      console.error("[kick-connect-ui] failed", { slug: parsed.slug, message });
+      setError(message);
     } finally {
       setIsConnecting(false);
     }
