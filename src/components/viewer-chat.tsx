@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { LogOut, MessageSquare, Wrench } from "lucide-react";
 
@@ -107,6 +107,16 @@ function LiveKickChat({
 }) {
   const chatEvents = events.filter(({ event }) => event.type === "chat.message.sent").slice(-80);
   const live = connectionState === "live";
+  const viewportRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const distanceFromBottom =
+      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+    if (distanceFromBottom < 120) viewport.scrollTop = viewport.scrollHeight;
+  }, [events]);
 
   return (
     <section
@@ -124,32 +134,24 @@ function LiveKickChat({
         </span>
       </header>
 
-      <div className="min-h-0 flex-1">
-        <MessageScrollerProvider>
-          <MessageScroller>
-            <MessageScrollerViewport>
-              <MessageScrollerContent
-                aria-live="polite"
-                className="justify-end gap-2 px-4 py-3"
-              >
-                {chatEvents.length === 0 ? (
-                  <div className="flex flex-1 items-center justify-center text-sm text-neutral-500">
-                    Waiting for live chat…
-                  </div>
-                ) : (
-                  chatEvents.map((wrapped, index) => (
-                    <MessageScrollerItem
-                      key={wrapped.seq}
-                      scrollAnchor={index === chatEvents.length - 1}
-                    >
-                      <KickChatLine wrapped={wrapped} />
-                    </MessageScrollerItem>
-                  ))
-                )}
-              </MessageScrollerContent>
-            </MessageScrollerViewport>
-          </MessageScroller>
-        </MessageScrollerProvider>
+      <div
+        ref={viewportRef}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain scrollbar-thin"
+      >
+        <div
+          aria-live="polite"
+          className="flex min-h-full flex-col justify-end gap-2 px-4 py-3"
+        >
+          {chatEvents.length === 0 ? (
+            <div className="flex flex-1 items-center justify-center text-sm text-neutral-500">
+              Waiting for live chat…
+            </div>
+          ) : (
+            chatEvents.map((wrapped) => (
+              <KickChatLine key={wrapped.seq} wrapped={wrapped} />
+            ))
+          )}
+        </div>
       </div>
 
     </section>
