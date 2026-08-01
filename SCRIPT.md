@@ -16,8 +16,6 @@
 
 **William drives the laptop during the demo** — Jayden talks, William clicks and types. The one hard rule: **the person on the keyboard doesn't talk during the demo.** Outside the demo, whoever's speaking advances their own slides.
 
-Rough split: William ≈ 2:10, Jayden ≈ 2:50.
-
 ---
 
 ## Pre-flight (at setup, not backstage)
@@ -30,9 +28,10 @@ Rough split: William ≈ 2:10, Jayden ≈ 2:50.
 - [ ] Recorded backup run loaded, one keystroke away.
 - [ ] Notifications off, Do Not Disturb on, browser fullscreen, nothing extended to a second display.
 - [ ] `[TBC]` Team member names confirmed for slide 1.
+- [ ] `[TBC]` Jayden's slide 5 talk-track agreed (script intentionally left blank — see below).
 - [ ] Timer visible to William.
 
-**Checkpoints:** into the demo by **1:25** · out by **3:45** · on the closing line by **4:35**.
+**Checkpoints:** into the demo by **1:25** · out by **3:25** · on the closing line by **4:20**.
 
 ---
 
@@ -84,7 +83,7 @@ Rough split: William ≈ 2:10, Jayden ≈ 2:50.
 >
 > Viewers ask it anything about the stream they're watching, and get an answer in seconds.
 >
-> And anything it *can't* answer — the stuff only the streamer knows — shows up on the streamer's side, as what chat's actually asking.
+> And everything chat is asking shows up on the streamer's side — so for the first time he can actually see what his chat wants to know.
 >
 > Jayden's going to show you.
 
@@ -94,7 +93,7 @@ Rough split: William ≈ 2:10, Jayden ≈ 2:50.
 
 ---
 
-# ⏱ 1:25 – 3:45 · THE DEMO — 2:20
+# ⏱ 1:25 – 3:25 · THE DEMO — 2:00
 
 > **Jayden narrates throughout. William drives and stays silent.**
 > William: click on the **first** word of each cued sentence, not the last. The tool calls rendering on screen are what cover the wait — never let the panel sit blank.
@@ -135,33 +134,21 @@ Rough split: William ≈ 2:10, Jayden ≈ 2:50.
 
 ---
 
-### Beat 3 · 0:30 — The bit it can't answer
-
-### 🎤 JAYDEN
-
-> Now something it genuinely can't know. **`[WILLIAM: ASK — "[TBC — a question only the streamer could answer]"]`**
->
-> It doesn't guess. It says that's one for the streamer — and I'm not the only one who's asked.
->
-> **`[WILLIAM: FLIP TO THE STREAMER VIEW]`**
->
-> Here's his side. That's my question, with everyone else who asked it stacked behind it.
->
-> He's never had this before. Most of what chat asked never needed him at all — Sidekick already handled it. These few do.
-
----
-
-### Beat 4 · 0:25 — The loop ⭐
+### Beat 3 · 0:35 — The streamer's side, and the loop ⭐
 
 > **This is the beat. Never cut it. Don't rush it.**
 
 ### 🎤 JAYDEN
 
-> So he answers it out loud, the way he always would. **`[WILLIAM: TRIGGER THE ANSWER]`**
+> Now here's his side. **`[WILLIAM: FLIP TO THE STREAMER VIEW]`**
 >
-> Sidekick picks it up. Everyone who asked gets it — in his words.
+> This is everything chat's been asking, grouped together and ranked. The FAQ of his stream, live.
 >
-> **`[WILLIAM: SHOW THE LINE LANDING IN REAL KICK CHAT]`** And one line goes into the real chat, so the whole room gets it too. There it is, on the left.
+> He's never had this before — nobody can read four thousand messages and tell him what people actually wanted to know.
+>
+> So he picks one, and answers it out loud, the way he always would. **`[WILLIAM: TRIGGER THE ANSWER]`**
+>
+> Sidekick picks that up. Everyone who asked gets it, in his words — **`[WILLIAM: SHOW THE LINE LANDING IN REAL KICK CHAT]`** and one line goes into the real chat, so the whole room gets it too. There it is, on the left.
 >
 > **`[WILLIAM: RE-ASK AS A NEW VIEWER]`** Someone turns up two minutes later and asks the same thing — instant.
 >
@@ -171,7 +158,7 @@ Rough split: William ≈ 2:10, Jayden ≈ 2:50.
 
 ---
 
-### Beat 5 · 0:20 — Wild Card: the voice
+### Beat 4 · 0:20 — Wild Card: the voice
 
 ### 🎤 JAYDEN
 
@@ -187,7 +174,7 @@ Rough split: William ≈ 2:10, Jayden ≈ 2:50.
 
 ---
 
-## ⏱ 3:45 – 4:05 · SLIDE 4 — Why this is big
+## ⏱ 3:25 – 3:45 · SLIDE 4 — Why this is big
 
 ### 🎤 WILLIAM
 
@@ -201,23 +188,28 @@ Rough split: William ≈ 2:10, Jayden ≈ 2:50.
 
 ---
 
-## ⏱ 4:05 – 4:35 · SLIDE 5 — How we built it
+## ⏱ 3:45 – 4:20 · SLIDE 5 — Technical implementation
 
 ### 🎤 JAYDEN
 
-> Quick word on how it actually works. **`[gesture at the diagram]`**
->
-> Chat comes in live off Kick's webhooks. That feeds an agent that picks its own tools — recent chat, the transcript, what's trending, what's already been answered — and it writes back into chat through your Chat API.
->
-> You paste any channel and it connects. No broadcaster sign-off, no login — app tokens can subscribe to any channel, so it works on anyone's stream from a standing start.
->
-> And the voice is the same agent. Speech in, same agent, speech out. Because real chat feeds a spoken answer, it all gets scrubbed before it's read aloud — you don't want your stream saying whatever chat just typed.
+> **`[SCRIPT INTENTIONALLY BLANK — Jayden talks to the diagram in his own words.]`**
 
-*(~120 words — the densest section, keep the pace up. The scrubbing line is worth three seconds: it's the risk a Kick judge is already thinking about.)*
+**Budget: 35 seconds. Roughly 80–90 words spoken — don't overrun, slide 6 is the payoff.**
+
+Reference points to hit, in whatever wording feels natural on the day:
+
+- Live chat in off Kick's webhooks.
+- The agent picks its own tools — recent chat, transcript, trending, what's already been answered.
+- Writes back into chat through the Chat API.
+- Paste any channel and it connects — app tokens subscribe to any channel, no broadcaster sign-off, no login.
+- Voice is the same agent: speech in, same agent, speech out.
+- Chat-derived text gets scrubbed before anything is spoken aloud.
+
+> The last one is worth three seconds even when you're short — it's the risk a Kick judge is already thinking about, and answering it before they ask reads as maturity.
 
 ---
 
-## ⏱ 4:35 – 5:00 · SLIDE 6 — Close
+## ⏱ 4:20 – 4:45 · SLIDE 6 — Close
 
 ### 🎤 WILLIAM
 
@@ -229,7 +221,7 @@ Rough split: William ≈ 2:10, Jayden ≈ 2:50.
 
 **`[STOP. Don't trail off.]`**
 
-*(~50 words.)*
+*(~50 words. ~15 seconds of slack left in the run — that's the buffer, don't spend it early.)*
 
 ---
 
@@ -243,7 +235,7 @@ Say these at full volume and keep moving. A recovered demo reads as confidence; 
 | An answer is wrong or odd | *"That's a live model on live chat — it'll do that occasionally. What matters is the next bit."* Move on. Don't debug on stage |
 | The channel goes offline | **`[WILLIAM: SWITCH TO BACKUP CHANNEL]`** *"Stream just ended — that's live for you. Here's another one."* |
 | Everything breaks | **`[WILLIAM: PLAY THE RECORDED RUN]`** *"We'll run the recording — same thing, half an hour ago."* Jayden keeps narrating the same script |
-| Over time at 3:45 | William jumps to Slide 6 and says the close only. Skip slides 4 and 5 |
+| Over time at 3:25 | William does slide 4 in one sentence, Jayden skips slide 5, straight to the close |
 
 ---
 
@@ -254,7 +246,7 @@ Say these at full volume and keep moving. A recovered demo reads as confidence; 
 | "Is that actually live?" | "Yeah — pick a channel, we'll paste it in." *(Only offer this if you've tested it.)* |
 | "Do you need the streamer's permission to connect?" | "No — app tokens can subscribe to any channel by user id. Paste a slug, it's live. That's your API, not a workaround." |
 | "It's reading live chat — what stops it saying something vile out loud?" | "Everything chat-derived gets scrubbed before text-to-speech. First thing we handled once real chat went in." |
-| "Isn't this just ChatGPT with the stream in the prompt?" | "The chatbot's the easy half. The product is knowing what it *can't* answer, and turning that into what the streamer sees." |
+| "Isn't this just ChatGPT with the stream in the prompt?" | "The chatbot's the easy half. The product is turning what chat's asking into something the streamer can actually act on." |
 | "Isn't the voice a separate system?" | "No — same agent. Speech in front, speech behind." |
 | "Doesn't the voice round-trip add latency?" | "We render the text the moment it exists and let the audio catch up — he sees it before he hears it." |
 | "Why isn't it inside the Kick page?" | "That's your slot to give. Everything behind it is your real API today. Drop it in the chat column and it ships." |
@@ -300,15 +292,15 @@ Keep the three lines clearly subordinate to the hero — a footer to it, not a c
 
 ---
 
-### SLIDE 3 — Our solution · *1:05–1:25* — **redesigned**
+### SLIDE 3 — Our solution · *1:05–1:25*
 
-The old three-row list is gone. Two blocks with a connector between them, because the connector *is* the product.
+Two blocks with a connector between them — the connector *is* the product.
 
 ```
    ┌────────────────────────┐                      ┌────────────────────────┐
    │  VIEWERS               │                      │  THE STREAMER          │
-   │                        │   what it can't      │                        │
-   │  Ask anything about    │  ───  answer  ──▶    │  Sees what chat is     │
+   │                        │    everything        │                        │
+   │  Ask anything about    │  ──  chat asks  ──▶  │  Sees what chat is     │
    │  the stream. Get an    │                      │  actually asking.      │
    │  answer in seconds.    │                      │                        │
    └────────────────────────┘                      └────────────────────────┘
@@ -319,19 +311,19 @@ The old three-row list is gone. Two blocks with a connector between them, becaus
 | Two blocks | Equal width, `--card` background, 4px radius, 1px border. Balanced — neither dominates |
 | Block labels (`VIEWERS`, `THE STREAMER`) | Small, muted, uppercase, Inter |
 | Block body | Inter, large, white |
-| The connector | Horizontal rule or arrow between the blocks, **green**, with `what it can't answer` as a small label sitting on it |
+| The connector | Horizontal rule or arrow between the blocks, **green**, with `everything chat asks` as a small label sitting on it |
 
 The green connector is the only green on the slide, and it carries the whole idea: these aren't two features, they're one flow. If the blocks ever stack on a narrower render, the arrow rotates to point down — the two blocks must never read as an unconnected pair.
 
 ---
 
-### ⬛ BLACK SLIDE — the demo · *1:25–3:45*
+### ⬛ BLACK SLIDE — the demo · *1:25–3:25*
 
 Empty `#0b0b0c`. Nothing on it.
 
 ---
 
-### SLIDE 4 — Why this is big · *3:45–4:05*
+### SLIDE 4 — Why this is big · *3:25–3:45*
 
 | Element | Content | Treatment |
 |---|---|---|
@@ -341,9 +333,9 @@ Empty `#0b0b0c`. Nothing on it.
 
 ---
 
-### SLIDE 5 — How we built it · *4:05–4:35* — **the technical slide**
+### SLIDE 5 — Technical implementation · *3:45–4:20*
 
-Densest slide in the deck. A diagram on top, two titled columns underneath.
+Densest slide in the deck. A diagram on top, two titled columns underneath. **Jayden speaks to this off the cuff, so the slide has to carry the structure** — it's his prompt as much as the audience's.
 
 | Area | Title | Content |
 |---|---|---|
@@ -357,7 +349,7 @@ Section titles small, muted, uppercase — the content lines should read first. 
 
 ---
 
-### SLIDE 6 — Close · *4:35–5:00*
+### SLIDE 6 — Close · *4:20–4:45*
 
 | Element | Content | Treatment |
 |---|---|---|
