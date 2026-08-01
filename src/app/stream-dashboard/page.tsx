@@ -1,7 +1,12 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   Bot,
   Check,
@@ -190,7 +195,10 @@ export default function StreamDashboardPage() {
   const questionsQuery = useQuery({
     queryKey: ["insights", "questions"],
     queryFn: () => getInsight<QuestionsResponse>("/insights/questions"),
+    placeholderData: keepPreviousData,
     refetchInterval: INSIGHT_REFETCH_MS,
+    refetchIntervalInBackground: true,
+    staleTime: INSIGHT_REFETCH_MS,
   });
   const streamDetailsQuery = useQuery({
     queryKey: ["kick", "stream", connectedSlug],
@@ -201,7 +209,10 @@ export default function StreamDashboardPage() {
         `/kick/streams/${encodeURIComponent(connectedSlug)}`,
       );
     },
+    placeholderData: keepPreviousData,
     refetchInterval: 15_000,
+    refetchIntervalInBackground: true,
+    staleTime: 15_000,
   });
 
   const answerMutation = useMutation({
@@ -214,6 +225,7 @@ export default function StreamDashboardPage() {
   });
 
   const questions = questionsQuery.data?.questions ?? [];
+  const questionsReady = questionsQuery.data !== undefined;
   const streamDetails = streamDetailsQuery.data?.stream;
   const streamer = connectedStream?.slug ?? "streamer";
   const streamTitle = streamDetails?.title ?? connectedStream?.title;
@@ -334,7 +346,7 @@ export default function StreamDashboardPage() {
                 ) : (
                   <div className="flex min-h-64 flex-col items-center justify-center gap-3 text-center text-muted-foreground">
                     <MessageSquare className="size-8" />
-                    <p>No repeated questions yet.</p>
+                    <p>{questionsReady ? "No repeated questions yet." : "Loading question clusters…"}</p>
                   </div>
                 )}
               </CardContent>

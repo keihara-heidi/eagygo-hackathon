@@ -11,6 +11,7 @@ import type { KickEventType } from "@/lib/kick/events";
 import type { FetchLike } from "@/lib/kick/http";
 import { createOAuthClient } from "@/lib/kick/oauth";
 import type {
+  KickChannel,
   KickEventSubscription,
   KickEventSubscriptionResult,
 } from "@/lib/kick/types";
@@ -28,6 +29,13 @@ export interface ConnectedChannelInfo {
   is_live: boolean;
   viewer_count: number;
   started_at: string | null;
+}
+
+export interface KickSubscriptionState {
+  subscriptions: KickEventSubscription[];
+  broadcaster_user_id: number | null;
+  channel: ConnectedChannelInfo | null;
+  conflict: boolean;
 }
 
 export type ConnectKickChannelResult =
@@ -73,6 +81,17 @@ function buildClients(deps: KickConnectDeps) {
   };
 }
 
+function toConnectedChannelInfo(channel: KickChannel): ConnectedChannelInfo {
+  return {
+    slug: channel.slug,
+    stream_title: channel.stream_title,
+    category: channel.category?.name ?? "",
+    is_live: channel.stream?.is_live ?? false,
+    viewer_count: channel.stream?.viewer_count ?? 0,
+    started_at: channel.stream?.is_live ? channel.stream.start_time : null,
+  };
+}
+
 function summarizeSubscriptions(subscriptions: KickEventSubscription[]) {
   return subscriptions.map((subscription) => ({
     id: subscription.id,
@@ -107,6 +126,36 @@ async function deleteAllSubscriptions(
     });
   }
   return existing;
+}
+
+export async function getKickSubscriptionState(
+  deps: KickConnectDeps,
+): Promise<KickSubscriptionState> {
+  const client = await buildClients(deps).kickClient();
+  const subscriptions = await listSubscriptions(client);
+  const broadcasterIds = [...new Set(subscriptions.map((subscription) => subscription.broadcaster_user_id))];
+  const broadcasterUserId = broadcasterIds.length === 1 ? broadcasterIds[0]! : null;
+  const conflict = broadcasterIds.length > 1 || subscriptions.length > 1;
+
+  let channel: ConnectedChannelInfo | null = null;
+  if (broadcasterUserId !== null && !conflict) {
+    const [resolvedChannel] = await client.channels.list({ broadcaster_user_id: [broadcasterUserId] });
+    channel = resolvedChannel ? toConnectedChannelInfo(resolvedChannel) : null;
+  }
+
+  console.info("[kick-subscriptions] state", {
+    count: subscriptions.length,
+    broadcasterUserId,
+    conflict,
+    channelSlug: channel?.slug,
+  });
+
+  return {
+    subscriptions,
+    broadcaster_user_id: broadcasterUserId,
+    channel,
+    conflict,
+  };
 }
 
 export async function connectKickChannel(
@@ -170,14 +219,7 @@ export async function connectKickChannel(
   return {
     ok: true,
     broadcaster_user_id: channel.broadcaster_user_id,
-    channel: {
-      slug: channel.slug,
-      stream_title: channel.stream_title,
-      category: channel.category?.name ?? "",
-      is_live: channel.stream?.is_live ?? false,
-      viewer_count: channel.stream?.viewer_count ?? 0,
-      started_at: channel.stream?.is_live ? channel.stream.start_time : null,
-    },
+    channel: toConnectedChannelInfo(channel),
     subscriptions,
     existing_subscriptions: existingSubscriptions,
   };
