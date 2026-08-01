@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"; // George — clear, energetic
+const VOICE_ID = "TvYCW7acMEs9RZ2kkcBn"; // Judy Y — friendly Australian woman, conversational
 const MODEL_ID = "eleven_flash_v2_5"; // fastest first-byte latency
 
 /** Text-to-speech for the voice pipeline: answer text in, MP3 audio out. */
