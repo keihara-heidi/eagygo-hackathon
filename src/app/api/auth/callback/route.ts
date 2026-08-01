@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     if (!user) return redirectToLogin(request, "oauth_failed");
 
     const session = await sealKickSession(tokens, user);
-    const response = NextResponse.redirect(new URL("/", request.url), 303);
+    const response = NextResponse.redirect(new URL("/chat", request.url), 303);
     response.cookies.set(
       KICK_SESSION_COOKIE,
       session.value,
