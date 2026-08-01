@@ -157,6 +157,16 @@ export class InsightEngine {
 
   handleEvent(stamped: StampedEvent) {
     const { event } = stamped;
+    // Once a real channel is observed, mock-cast events (broadcast as the
+    // persona) are noise: drop them so fake chat can never wipe or
+    // contaminate the live windows. Mock -> live still resets; live -> mock
+    // is not possible in-process (restart is the only way back).
+    const broadcaster = (
+      event.payload as { broadcaster?: { channel_slug?: string } }
+    ).broadcaster;
+    if (this.liveBroadcaster && broadcaster?.channel_slug === STREAMER.channel_slug) {
+      return;
+    }
     switch (event.type) {
       case "chat.message.sent":
         this.handleChat(event.payload);
@@ -185,16 +195,11 @@ export class InsightEngine {
     if (payload.sender.user_id === SIDEKICK_BOT.user_id) return;
 
     // Real chat carries the real channel in the broadcaster field; the mock
-    // cast always broadcasts as STREAMER. Switching channels (or back to the
-    // mock) resets every window so stale clusters and trends never bleed
-    // across contexts.
+    // cast always broadcasts as STREAMER. A new real broadcaster resets every
+    // window so stale clusters and trends never bleed across channels. Mock
+    // events arriving while live are dropped in handleEvent above.
     const broadcasterSlug = payload.broadcaster.channel_slug;
-    if (broadcasterSlug === STREAMER.channel_slug) {
-      if (this.liveBroadcaster) {
-        this.liveBroadcaster = null;
-        this.resetWindows();
-      }
-    } else if (this.liveBroadcaster?.slug !== broadcasterSlug) {
+    if (broadcasterSlug !== STREAMER.channel_slug && this.liveBroadcaster?.slug !== broadcasterSlug) {
       this.liveBroadcaster = {
         username: payload.broadcaster.username,
         slug: broadcasterSlug,

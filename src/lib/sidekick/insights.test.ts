@@ -252,7 +252,7 @@ describe("stream context", () => {
 });
 
 describe("live channel context", () => {
-  it("flips to the observed broadcaster, resets windows on switch, and flips back", () => {
+  it("flips to the observed broadcaster, resets windows on switch, and drops mock events while live", () => {
     const { engine, insights } = rig();
     engine.publish(chatDelivery(makeUser(701, "asker_a"), "what's your sens?"));
     engine.publish(chatDelivery(makeUser(702, "asker_b"), "whats ur dpi and sens"));
@@ -266,16 +266,35 @@ describe("live channel context", () => {
         broadcaster: kanel,
       }),
     );
+    engine.publish(
+      chatDelivery(makeUser(705, "viewer_c"), "who is playing right now?", {
+        broadcaster: kanel,
+      }),
+    );
 
     const liveContext = insights.context();
     expect(liveContext.streamer).toBe("kaneljoseph");
     expect(liveContext.title).toBe("Live on KICK");
     // Mock-era clusters and trends are gone — nothing bleeds across.
-    expect(insights.questions()).toHaveLength(0);
+    expect(insights.questions().map((cluster) => cluster.representative)).toEqual([
+      "who is playing right now?",
+    ]);
     expect(insights.trending().words.map((entry) => entry.word)).not.toContain("sens");
 
-    engine.publish(chatDelivery(makeUser(705, "home_again"), "we back?"));
-    expect(insights.context().streamer).toBe(STREAMER.username);
+    // Mock-cast events arriving while live are dropped: context stays, live
+    // clusters survive, and the fake question never clusters.
+    engine.publish(chatDelivery(makeUser(706, "mock_asker"), "what's your sens?"));
+    expect(insights.context().streamer).toBe("kaneljoseph");
+    expect(insights.questions().map((cluster) => cluster.representative)).toEqual([
+      "who is playing right now?",
+    ]);
+    expect(insights.chatters().active_last_10m).toBe(3);
+
+    // A different real channel still switches and resets.
+    const xqc = makeUser(710_929, "xqc");
+    engine.publish(chatDelivery(makeUser(707, "juicer"), "LETS GO xqc", { broadcaster: xqc }));
+    expect(insights.context().streamer).toBe("xqc");
+    expect(insights.questions()).toHaveLength(0);
   });
 
   it("!answered <words> stores the spoken answer as the recall payload", () => {
