@@ -164,27 +164,89 @@ function minutesSince(timestamp?: string | null) {
   return Math.max(0, Math.floor((Date.now() - startedAt) / 60_000));
 }
 
+function normalizeQuestionText(text: string) {
+  return kickContentToPlainText(text)
+    .toLowerCase()
+    .replace(/[“”"']/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function questionMergeKey(question: QuestionCluster) {
+  return normalizeQuestionText(question.representative) || question.id;
+}
+
+function earlierTimestamp(a: string, b: string) {
+  return Date.parse(a) <= Date.parse(b) ? a : b;
+}
+
+function laterTimestamp(a: string, b: string) {
+  return Date.parse(a) >= Date.parse(b) ? a : b;
+}
+
+function laterNullableTimestamp(a: string | null, b: string | null) {
+  if (!a) return b;
+  if (!b) return a;
+  return laterTimestamp(a, b);
+}
+
+function mergeQuestionCluster(a: QuestionCluster, b: QuestionCluster): QuestionCluster {
+  const newer = Date.parse(b.last_asked_at) >= Date.parse(a.last_asked_at) ? b : a;
+  const higherCount = b.count >= a.count ? b : a;
+
+  return {
+    ...higherCount,
+    id: newer.id,
+    representative: higherCount.representative,
+    count: Math.max(a.count, b.count),
+    askers: Array.from(new Set([...a.askers, ...b.askers])),
+    first_asked_at: earlierTimestamp(a.first_asked_at, b.first_asked_at),
+    last_asked_at: laterTimestamp(a.last_asked_at, b.last_asked_at),
+    answered: a.answered || b.answered,
+    answered_at: laterNullableTimestamp(a.answered_at, b.answered_at),
+    answer: b.answer ?? a.answer,
+    digested: a.digested || b.digested,
+  };
+}
+
 function mergeQuestionsInMemory(
   current: QuestionCluster[],
   incoming: QuestionCluster[],
 ) {
   if (incoming.length === 0) return current;
 
-  const cache = new Map(current.map((question) => [question.id, question]));
-  const incomingIds = new Set<string>();
-  const orderedIncoming: QuestionCluster[] = [];
+  const currentById = new Map(current.map((question) => [question.id, question]));
+  const currentByText = new Map(current.map((question) => [questionMergeKey(question), question]));
+  const consumedCurrentIds = new Set<string>();
+  const incomingByText = new Map<string, QuestionCluster>();
+  const incomingOrder: string[] = [];
 
   for (const question of incoming) {
-    if (incomingIds.has(question.id)) continue;
-    incomingIds.add(question.id);
-    const merged = { ...cache.get(question.id), ...question };
-    cache.set(question.id, merged);
-    orderedIncoming.push(merged);
+    const key = questionMergeKey(question);
+    const currentMatch = currentById.get(question.id) ?? currentByText.get(key);
+    if (currentMatch) consumedCurrentIds.add(currentMatch.id);
+
+    const mergedWithCurrent = currentMatch
+      ? mergeQuestionCluster(currentMatch, question)
+      : question;
+    const existingIncoming = incomingByText.get(key);
+    if (existingIncoming) {
+      incomingByText.set(key, mergeQuestionCluster(existingIncoming, mergedWithCurrent));
+    } else {
+      incomingByText.set(key, mergedWithCurrent);
+      incomingOrder.push(key);
+    }
   }
 
   return [
-    ...orderedIncoming,
-    ...current.filter((question) => !incomingIds.has(question.id)),
+    ...incomingOrder.flatMap((key) => {
+      const question = incomingByText.get(key);
+      return question ? [question] : [];
+    }),
+    ...current.filter(
+      (question) =>
+        !consumedCurrentIds.has(question.id) && !incomingByText.has(questionMergeKey(question)),
+    ),
   ];
 }
 
@@ -323,7 +385,7 @@ export default function StreamDashboardPage() {
                 {questions.length ? (
                   <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                     {questions.slice(0, 8).map((question) => (
-                      <li key={question.id} className="min-w-0 rounded-lg border bg-background p-3">
+                      <li key={questionMergeKey(question)} className="min-w-0 rounded-lg border bg-background p-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant={question.answered ? "secondary" : "default"}>
                             {question.count}x
