@@ -116,7 +116,7 @@ interface ConnectRouteResponse {
     broadcaster_user_id: number;
     method: string;
   }>;
-  deleted_subscription_count: number;
+  deleted_subscription_count?: number;
 }
 
 export function useConnectedKickStream() {
@@ -162,6 +162,12 @@ export function useConnectedKickStream() {
         ...(data.channel.started_at ? { startedAt: data.channel.started_at } : {}),
       };
     } catch (error) {
+      if (isAxiosError(error)) {
+        console.error("[kick-connect-ui] connect error payload", {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
       const message =
         isAxiosError<{ error?: string }>(error) && error.response?.data?.error
           ? error.response.data.error

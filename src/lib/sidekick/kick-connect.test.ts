@@ -70,8 +70,8 @@ function connectHandler(overrides?: {
 }
 
 describe("connectKickChannel", () => {
-  it("runs token grant -> channel lookup -> list+delete+create with the right shapes", async () => {
-    const { fetchImpl, calls } = stubFetch(connectHandler());
+  it("runs token grant -> channel lookup -> list+create with the right shapes when no subscription exists", async () => {
+    const { fetchImpl, calls } = stubFetch(connectHandler({ existing: [] }));
 
     const result = await connectKickChannel("orbitfps", { ...DEPS, fetch: fetchImpl });
 
@@ -86,16 +86,15 @@ describe("connectKickChannel", () => {
         viewer_count: 123,
         started_at: "2025-01-01T00:00:00Z",
       },
+      existing_subscriptions: [],
     });
 
-    const [token, lookup, list, del, create] = calls;
+    const [token, lookup, list, create] = calls;
     expect(token?.url).toBe("https://id.kick.com/oauth/token");
     expect(token?.init.body).toContain("grant_type=client_credentials");
     expect(lookup?.url).toBe("https://api.kick.com/public/v1/channels?slug=orbitfps");
     expect(lookup?.init.headers?.Authorization).toBe("Bearer app-token");
     expect(list?.url).toBe("https://api.kick.com/public/v1/events/subscriptions");
-    expect(del?.init.method).toBe("DELETE");
-    expect(del?.url).toContain("id=old-sub-1");
     expect(create?.init.method).toBe("POST");
     const createBody = JSON.parse(create?.init.body ?? "{}") as {
       broadcaster_user_id: number;
@@ -104,16 +103,22 @@ describe("connectKickChannel", () => {
     };
     expect(createBody.broadcaster_user_id).toBe(987654);
     expect(createBody.method).toBe("webhook");
-    expect(createBody.events).toHaveLength(10);
-    expect(createBody.events.every((event) => event.version === 1)).toBe(true);
+    expect(createBody.events).toEqual([{ name: "chat.message.sent", version: 1 }]);
+    expect(calls.some((call) => call.init.method === "DELETE")).toBe(false);
   });
 
-  it("skips the delete call when the app has no existing subscriptions", async () => {
-    const { fetchImpl, calls } = stubFetch(connectHandler({ existing: [] }));
+  it("hard-locks when any webhook subscription already exists", async () => {
+    const { fetchImpl, calls } = stubFetch(connectHandler());
 
-    await connectKickChannel("orbitfps", { ...DEPS, fetch: fetchImpl });
+    const result = await connectKickChannel("orbitfps", { ...DEPS, fetch: fetchImpl });
 
+    expect(result).toMatchObject({
+      ok: false,
+      status: 409,
+      existing_subscriptions: [EXISTING_SUBSCRIPTION],
+    });
     expect(calls.some((call) => call.init.method === "DELETE")).toBe(false);
+    expect(calls.some((call) => call.init.method === "POST" && call.url.includes("/events/subscriptions"))).toBe(false);
   });
 
   it("returns 404 with a clear message when the slug does not resolve", async () => {
@@ -133,9 +138,9 @@ describe("connectKickChannel", () => {
   it("surfaces per-event errors from the create result array", async () => {
     const { fetchImpl } = stubFetch(
       connectHandler({
+        existing: [],
         createResults: [
-          { name: "chat.message.sent", version: 1, subscription_id: "new-sub-1" },
-          { name: "kicks.gifted", version: 1, error: "subscription limit reached" },
+          { name: "chat.message.sent", version: 1, error: "subscription limit reached" },
         ],
       }),
     );
@@ -145,8 +150,7 @@ describe("connectKickChannel", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.subscriptions).toEqual([
-        { name: "chat.message.sent", version: 1, subscription_id: "new-sub-1" },
-        { name: "kicks.gifted", version: 1, error: "subscription limit reached" },
+        { name: "chat.message.sent", version: 1, error: "subscription limit reached" },
       ]);
     }
   });

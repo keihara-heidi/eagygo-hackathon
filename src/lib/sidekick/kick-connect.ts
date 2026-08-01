@@ -7,7 +7,7 @@
  */
 
 import { createKickClient } from "@/lib/kick/client";
-import { KICK_EVENT_TYPES } from "@/lib/kick/events";
+import type { KickEventType } from "@/lib/kick/events";
 import type { FetchLike } from "@/lib/kick/http";
 import { createOAuthClient } from "@/lib/kick/oauth";
 import type {
@@ -37,13 +37,20 @@ export type ConnectKickChannelResult =
       channel: ConnectedChannelInfo;
       subscriptions: KickEventSubscriptionResult[];
       existing_subscriptions: KickEventSubscription[];
-      deleted_subscription_count: number;
     }
-  | { ok: false; status: number; error: string };
+  | {
+      ok: false;
+      status: number;
+      error: string;
+      existing_subscriptions?: KickEventSubscription[];
+    };
 
 // Same slug rules as parseKickStreamLink in use-connected-kick-stream.ts —
 // the route revalidates server-side rather than trusting the client.
 const SLUG_PATTERN = /^[a-z0-9_-]{2,40}$/i;
+const LIVE_CONNECT_EVENTS: Array<{ name: KickEventType; version: number }> = [
+  { name: "chat.message.sent", version: 1 },
+];
 
 export function isValidKickSlug(slug: unknown): slug is string {
   return typeof slug === "string" && SLUG_PATTERN.test(slug);
@@ -66,21 +73,32 @@ function buildClients(deps: KickConnectDeps) {
   };
 }
 
-/** Deletes every event subscription owned by this app. Returns what existed before deletion. */
-async function deleteAllSubscriptions(
+function summarizeSubscriptions(subscriptions: KickEventSubscription[]) {
+  return subscriptions.map((subscription) => ({
+    id: subscription.id,
+    event: subscription.event,
+    version: subscription.version,
+    broadcasterUserId: subscription.broadcaster_user_id,
+    method: subscription.method,
+  }));
+}
+
+async function listSubscriptions(
   client: ReturnType<typeof createKickClient>,
 ): Promise<KickEventSubscription[]> {
   const existing = await client.events.subscriptions.list();
   console.info("[kick-connect] existing subscriptions listed", {
     count: existing.length,
-    subscriptions: existing.map((subscription) => ({
-      id: subscription.id,
-      event: subscription.event,
-      version: subscription.version,
-      broadcasterUserId: subscription.broadcaster_user_id,
-      method: subscription.method,
-    })),
+    subscriptions: summarizeSubscriptions(existing),
   });
+  return existing;
+}
+
+/** Deletes every event subscription owned by this app. Returns what existed before deletion. */
+async function deleteAllSubscriptions(
+  client: ReturnType<typeof createKickClient>,
+): Promise<KickEventSubscription[]> {
+  const existing = await listSubscriptions(client);
   if (existing.length > 0) {
     await client.events.subscriptions.delete(existing.map((sub) => sub.id));
     console.info("[kick-connect] deleted existing subscriptions", {
@@ -119,17 +137,30 @@ export async function connectKickChannel(
     viewerCount: channel.stream?.viewer_count ?? 0,
   });
 
-  // Replace-don't-accumulate: this app tracks exactly one channel at a time.
-  const existingSubscriptions = await deleteAllSubscriptions(client);
+  // Hard lock: the app may have exactly one active webhook subscription.
+  // If anything already exists, force an explicit disconnect/cleanup first.
+  const existingSubscriptions = await listSubscriptions(client);
+  if (existingSubscriptions.length > 0) {
+    console.warn("[kick-connect] refusing connect because subscriptions already exist", {
+      requestedSlug: slug,
+      requestedBroadcasterUserId: channel.broadcaster_user_id,
+      existingSubscriptions: summarizeSubscriptions(existingSubscriptions),
+    });
+    return {
+      ok: false,
+      status: 409,
+      error: "KICK webhook subscription already exists; disconnect or delete it before connecting another stream",
+      existing_subscriptions: existingSubscriptions,
+    };
+  }
 
-  const requestedEvents = KICK_EVENT_TYPES.map((name) => ({ name, version: 1 }));
   console.info("[kick-connect] creating subscriptions", {
     broadcasterUserId: channel.broadcaster_user_id,
-    events: requestedEvents,
+    events: LIVE_CONNECT_EVENTS,
   });
   const subscriptions = await client.events.subscriptions.create({
     broadcaster_user_id: channel.broadcaster_user_id,
-    events: requestedEvents,
+    events: LIVE_CONNECT_EVENTS,
   });
   console.info("[kick-connect] create result", {
     broadcasterUserId: channel.broadcaster_user_id,
@@ -149,7 +180,6 @@ export async function connectKickChannel(
     },
     subscriptions,
     existing_subscriptions: existingSubscriptions,
-    deleted_subscription_count: existingSubscriptions.length,
   };
 }
 

@@ -44,7 +44,13 @@ export async function POST(request: Request) {
   try {
     const result = await connectKickChannel(slug, deps);
     if (!result.ok) {
-      return Response.json({ error: result.error }, { status: result.status });
+      return Response.json(
+        {
+          error: result.error,
+          existing_subscriptions: result.existing_subscriptions ?? [],
+        },
+        { status: result.status },
+      );
     }
 
     getChatEngine().demo.stop();
@@ -53,7 +59,6 @@ export async function POST(request: Request) {
       channel: result.channel,
       subscriptions: result.subscriptions,
       existing_subscriptions: result.existing_subscriptions,
-      deleted_subscription_count: result.deleted_subscription_count,
     });
   } catch (error) {
     console.error("[kick-connect] connect failed:", error);
