@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { maskSlurs } from "@/lib/sidekick/clean-speech";
 import { getSidekickRuntime } from "@/lib/sidekick/runtime";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,10 @@ export async function POST(request: Request) {
   if (!payload || typeof payload !== "object" || typeof payload.content !== "string") {
     return NextResponse.json({ error: "expected { payload: ChatMessageEvent }" }, { status: 400 });
   }
+
+  // Hate speech never enters the engine — masked before ingest so the chat
+  // overlay, insights and digests all see the cleaned content.
+  payload.content = maskSlurs(payload.content);
 
   const stamped = getSidekickRuntime().engine.publish({
     eventType: "chat.message.sent",

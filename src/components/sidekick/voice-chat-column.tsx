@@ -5,6 +5,7 @@ import { Gift, Heart, Shield, Star } from "lucide-react";
 
 import { useKickStreamEvents } from "@/hooks/use-kick-stream-events";
 import type { StampedEvent } from "@/lib/chat-engine/types";
+import { maskSlurs } from "@/lib/sidekick/clean-speech";
 import { cn } from "@/lib/utils";
 
 const SIDEKICK_USER_ID = 9_999_999;
@@ -16,7 +17,9 @@ export function useVoiceChatFeed() {
 }
 
 function renderContent(content: string) {
-  const parts = content.split(/(\[emote:\d+:\w+\])/g);
+  // Second safety layer: ingest already masks slurs, but mock/local paths
+  // render through here too.
+  const parts = maskSlurs(content).split(/(\[emote:\d+:\w+\])/g);
   return parts.map((part, index) => {
     const match = /^\[emote:\d+:(\w+)\]$/.exec(part);
     if (!match) return <span key={index}>{part}</span>;
@@ -105,18 +108,23 @@ function OverlayLine({ event }: { event: StampedEvent }) {
 export function VoiceChatOverlay({ events }: { events: StampedEvent[] }) {
   const viewportRef = useRef<HTMLDivElement>(null);
 
+  // Follow new messages only while the user is at (or near) the bottom, so
+  // scrolling back through history isn't yanked away.
   useEffect(() => {
     const viewport = viewportRef.current;
-    if (viewport) viewport.scrollTop = viewport.scrollHeight;
+    if (!viewport) return;
+    const distanceFromBottom =
+      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+    if (distanceFromBottom < 120) viewport.scrollTop = viewport.scrollHeight;
   }, [events]);
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 px-3">
       <div
         ref={viewportRef}
-        className="flex max-h-56 w-[85%] max-w-[320px] flex-col items-start gap-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_22%)]"
+        className="pointer-events-auto flex max-h-56 w-[85%] max-w-[320px] flex-col items-start gap-1 overflow-y-auto overscroll-contain [mask-image:linear-gradient(to_bottom,transparent,black_22%)] [scrollbar-width:none]"
       >
-        {events.slice(-40).map((event) => (
+        {events.slice(-120).map((event) => (
           <OverlayLine key={event.seq} event={event} />
         ))}
       </div>
