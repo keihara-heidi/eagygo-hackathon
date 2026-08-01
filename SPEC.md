@@ -57,11 +57,27 @@ We keep the streamer side minimal: no separate dashboard. Insight arrives where 
 
 The streamer's only dedicated interface — mid-game, hands on keyboard, nothing to read. From their phone:
 
-- Push-to-talk button (phone browser page, Web Speech API).
+- Tap to talk on a phone browser page; conversation runs over WebRTC via **ElevenLabs Agents**.
 - Ask: *"What's chat been saying the last 10 minutes?"* / *"What's the vibe?"* / *"Any questions I should answer?"* / *"Who's new today?"*
-- Agent speaks the answer back through the speaker (TTS), powered by the same insight engine as the viewer bot.
+- Agent answers out loud with real, expressive turn-taking voice — powered by the same insight engine as the viewer bot.
 
 Same brain, second interface. Pitch line: *"Viewers get a widget; the streamer gets a voice. Nobody gets a dashboard."*
+
+**ElevenLabs architecture:**
+
+1. Create an agent in the [ElevenLabs dashboard](https://elevenlabs.io/app/agents) ("Sidekick"). System prompt: *"You are Sidekick, a live co-pilot for a Kick streamer. Answer questions about their chat using your tools. Be brief and punchy — the streamer is mid-game."* Enable Expressive Mode.
+2. `/voice` page wraps the app in `ConversationProvider` from **`@elevenlabs/react`** with the `agentId`; `startSession()` on tap — the SDK handles mic, STT, turn-taking, and TTS audio out. No speech code on our side.
+3. Connect it to our data with **client tools** (defined in the agent config, implemented as functions on the `/voice` page): `get_chat_vibe`, `get_recent_questions`, `get_trending`, `get_new_chatters`, `get_stream_context`. Each handler just `fetch`es our Next.js insight API and returns JSON; the agent turns it into speech.
+4. Public agent + `agentId` is enough for the demo (no signed-URL server auth needed). Client tools mean **no public webhook/tunnel required** — the phone page calls our API directly.
+
+**Fallback if ElevenLabs is down/quota'd on demo day:** keep the browser `SpeechRecognition` + `speechSynthesis` path behind a flag.
+
+**♻️ Overlap with the main solution — read this if you're building the copilot/insight engine:**
+
+- **The insight API is the shared contract.** The voice agent's client tools (`get_chat_vibe`, `get_recent_questions`, `get_trending`, `get_new_chatters`, `get_stream_context`, `get_answered_questions`) are the *same* functions the viewer copilot needs. Build them once as Next.js API routes on top of the insight engine; both interfaces consume them. Agree on names/shapes early — changing a tool name later means touching the ElevenLabs agent config too.
+- **The viewer widget's tool-call display should show these exact tool names.** Then the "mocked" tool calls in the UI are the real contract the voice agent uses — one story across both demos, and judges see the same architecture twice.
+- **The answered-questions store is shared state.** `!answered` (main solution) must be readable by the voice agent ("any questions I should answer?" → skips answered ones).
+- **Optional cheap win:** ElevenLabs TTS can also voice the viewer copilot's catch-up TLDR ("🔊 listen instead") — same API key, ~10 lines.
 
 ---
 
@@ -93,7 +109,7 @@ Same brain, second interface. Pitch line: *"Viewers get a widget; the streamer g
 └──────────────┘ └──────────────┘ └───────────────┘
 ```
 
-**Stack:** Next.js (App Router) + TypeScript + Tailwind (+ shadcn/ui). Insight engine in API routes / server code; event stream to clients via SSE or simple polling. Voice via browser `SpeechRecognition` + `speechSynthesis` (zero infra).
+**Stack:** Next.js (App Router) + TypeScript + Tailwind (+ shadcn/ui). Insight engine in API routes / server code; event stream to clients via SSE or simple polling. Voice via **ElevenLabs Agents** (`@elevenlabs/react`, client tools calling our insight API); browser Web Speech API as fallback.
 
 **LLM responses:** two options, decide early —
 1. **Scripted responses** keyed to demo timeline (deterministic, zero risk, fine per brief since mocking is allowed) — recommended baseline.
@@ -124,7 +140,7 @@ Same brain, second interface. Pitch line: *"Viewers get a widget; the streamer g
 | 3 | Insight engine: word/emote frequency buckets, question detection + clustering, vibe classifier, chatter tracking, answered-question store | 75m | |
 | 4 | Viewer copilot widget: chat UI, tool-call rendering, scripted/LLM responses, auto-greet | 75m | |
 | 5 | Bot digest posts into chat + `!answered` command handling | 30m | |
-| 6 | Voice agent page: PTT, speech-to-text, route intents to insight engine, TTS response | 60m | |
+| 6 | Voice agent: configure ElevenLabs agent (prompt + client tools), `/voice` page with `@elevenlabs/react`, tool handlers → insight API | 60m | |
 | 7 | Polish pass: Kick dark theme (green `#53FC18` accent), demo dry-run, fix the demo path only | 45m | |
 | 8 | Presentation deck/pages + email submission | 45m | |
 
