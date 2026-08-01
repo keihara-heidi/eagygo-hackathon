@@ -41,6 +41,8 @@ Wrapper over the KICK Public API. Types mirror https://docs.kick.com verbatim (s
 - OAuth: revoke/introspect deliberately omitted
 - Testing: event-stream seam only — docs-derived fixtures through pure logic; surfaces untested beyond smoke
 - Live OAuth integration test is env-gated: `KICK_CLIENT_ID=… KICK_CLIENT_SECRET=… bun run test`
+- Stream visual is mocked (canned frame in the video placeholder) — no live thumbnail polling or `player.kick.com` embed; the brief allows mocks and no insight tool consumes visuals. (KICK webhooks carry no imagery; REST exposes only `thumbnail` if this is ever revisited.)
+- Live webhook receiver is post-demo scope: the engine's sole ingress is `publish(WebhookDelivery)`, so the receiver is a thin adapter (verify RSA-SHA256 signature over `{message-id}.{timestamp}.{raw-body}` with `client.publicKey()`, dedupe on `Kick-Event-Message-Id`, then `publish`). Subscriptions via app token (`clientCredentials()` + `broadcaster_user_id`)
 
 ## Working agreements
 
