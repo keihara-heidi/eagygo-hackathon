@@ -1,38 +1,38 @@
 # Sidekick — presentation script
 
 > **Team Heidi · Easygo Mini Hackathon · Challenge 02 + Wild Card · 5:00**
-> Two speakers. Word-for-word below. Cues in **`[BOLD BRACKETS]`** are for whoever is driving.
-> Thinking behind every choice: `PITCH-PLAN.md`.
+> Word-for-word below. Cues in **`[BOLD BRACKETS]`** are for whoever is driving.
+> Anything marked **`[TBC]`** needs filling in before the run-through.
+> Reasoning behind the choices: `PITCH-PLAN.md`.
 
 ---
 
-## Roles
+## Who does what
 
-**Speaker 1** — the demo voice. Takes: the problem, the whole demo, the close.
-**Speaker 2** — the framing voice. Takes: the intro, the solution, the opportunity. **Drives the laptop through the demo.**
+| | Who | Takes |
+|---|---|---|
+| **Speaker 1** | **William** | Intro, the problem, the solution, the opportunity, the close |
+| **Speaker 2** | **Jayden** | Narrates the whole demo, then the technical slide |
 
-Decide between you who's who — S1 should be whoever is more comfortable talking over live latency.
+**William drives the laptop during the demo** — Jayden talks, William clicks and types. The one hard rule: **the person on the keyboard doesn't talk during the demo.** Outside the demo, whoever's speaking advances their own slides.
 
-**The one hard rule: the person on the keyboard during the demo does not talk during the demo.** Everything else is negotiable. Outside the demo, whoever is speaking advances their own slides.
-
-**Speaking split:** S1 ≈ 3:40, S2 ≈ 1:20. Uneven on purpose — the demo is one continuous voice, and breaking it up costs more than it balances.
+Rough split: William ≈ 2:10, Jayden ≈ 2:50.
 
 ---
 
-## Pre-flight (do this at setup, not backstage)
+## Pre-flight (at setup, not backstage)
 
-- [ ] Channel picked — **live right now**, chat moving, safe on a projector. Have two backups.
-- [ ] Sidekick already connected to it — webhook subscriptions swapped onto that channel and confirmed receiving.
-- [ ] Model provider key set and answering (Anthropic or Fireworks). Scripted fallback verified too, in case the key dies.
-- [ ] Logged in to Kick as the demo viewer account.
-- [ ] **Audio tested through the venue** at real volume — beats 5 and 6 need it.
+- [ ] Channel picked — **live right now**, chat moving, safe on a projector. Two backups ready.
+- [ ] Webhook subscriptions swapped onto that channel, confirmed receiving.
+- [ ] Model key answering (Anthropic or Fireworks). Scripted fallback verified too.
+- [ ] **Audio tested through the venue** at real volume — the loop beat and the voice beat need it.
 - [ ] Hotspot on and selected. Venue wifi as backup only.
-- [ ] Model pre-warmed (one throwaway call).
 - [ ] Recorded backup run loaded, one keystroke away.
-- [ ] Notifications off, Do Not Disturb on, browser fullscreen, no second display extended.
-- [ ] Timer visible to S2.
+- [ ] Notifications off, Do Not Disturb on, browser fullscreen, nothing extended to a second display.
+- [ ] `[TBC]` Team member names confirmed for slide 1.
+- [ ] Timer visible to William.
 
-**Timing checkpoints:** into the demo by **1:20** · out by **3:50** · on the closing line by **4:40**.
+**Checkpoints:** into the demo by **1:25** · out by **3:45** · on the closing line by **4:35**.
 
 ---
 
@@ -40,208 +40,194 @@ Decide between you who's who — S1 should be whoever is more comfortable talkin
 
 ---
 
-## ⏱ 0:00 – 0:20 · SLIDE 1 — Title
+## ⏱ 0:00 – 0:25 · SLIDE 1 — Hi, we're Team Heidi
 
-### 🎤 SPEAKER 2
+### 🎤 WILLIAM
 
-> Hey — we're Team Heidi. I'm [name], this is [name].
+> Hi everyone — we're **Team Heidi**.
+>
+> I'm William, this is Jayden, `[TBC — remaining names]`.
 >
 > We built **Sidekick**. It answers the questions chat never gets to.
->
-> And everything you're about to see is running on a **live Kick channel**. Real chat, happening right now. None of it's mocked.
 
-*(~45 words. Land "none of it's mocked" — it buys you credibility for the next four minutes.)*
+*(~30 words. Warm, unhurried. Don't rush the names — it's the only twenty seconds anyone gets to know who you are.)*
 
 ---
 
-## ⏱ 0:20 – 1:00 · SLIDE 2 — The problem
+## ⏱ 0:25 – 1:05 · SLIDE 2 — The problem
 
-### 🎤 SPEAKER 1
+### 🎤 WILLIAM
 
-> Chat is where the stream actually happens.
+> So — this is where a stream actually happens. **`[gesture at the chat column]`** Not the video. The chat.
 >
-> But live chat stops working as a conversation at about **one message every seven seconds** — and every stream you care about on Kick is ten times past that.
+> And the problem is simple: **once chat is moving this fast, you can't follow it as a conversation any more.** You're not reading it. You're watching it go past.
 >
-> So you click in. You don't know who's on screen, you don't know what they're arguing about. You type a question — and nobody answers. Nobody's being rude. **Nobody saw it.**
+> Three things break.
 >
-> Three things break. New viewers leave, because they never get context. The streamer can't read their own chat, so they answer whatever their eye happens to land on. And every answer they *do* give disappears the second it's said.
+> **One** — new viewers leave, because they never get any context.
+>
+> **Two** — the streamer can't read their own chat either. So they answer whatever their eye happens to land on — not the questions chat actually wants answered.
+>
+> **Three** — and every answer they *do* give disappears the second it's said.
 
-*(~100 words. Slow down on "Nobody saw it." That's the line the demo is about to prove.)*
+*(~110 words. Slow down on "you can't follow it as a conversation any more" — that's the whole problem in one line. Count the three on your fingers so they land as three.)*
+
+> **We dropped the statistic.** "One message every seven seconds" is real research, but it's from 2016 and measured on another platform — not something we can cite in this room. Saying it plainly is stronger than a number we'd have to defend. If someone measures a live Kick channel before the deadline, it comes back as a caption.
 
 ---
 
-## ⏱ 1:00 – 1:20 · SLIDE 3 — The solution
+## ⏱ 1:05 – 1:25 · SLIDE 3 — Our solution
 
-### 🎤 SPEAKER 2
+### 🎤 WILLIAM
 
-> So — Sidekick.
+> That's what Sidekick is for.
 >
 > Viewers ask it anything about the stream they're watching, and get an answer in seconds.
 >
-> Anything it *can't* answer — the stuff only the streamer knows — shows up on his side as what chat's actually asking.
+> And anything it *can't* answer — the stuff only the streamer knows — shows up on the streamer's side, as what chat's actually asking.
 >
-> Viewers get an answer. The streamer gets to see what everyone wants. **Nobody gets a dashboard.**
->
-> [name]'s going to show you.
+> Jayden's going to show you.
 
-**`[S2 MOVES TO KEYBOARD. GO FULLSCREEN ON THE LIVE APP.]`**
+**`[WILLIAM MOVES TO THE KEYBOARD. FULLSCREEN ON THE LIVE APP.]`**
 
 *(~55 words.)*
 
 ---
 
-# ⏱ 1:20 – 3:50 · THE DEMO — 2:30
+# ⏱ 1:25 – 3:45 · THE DEMO — 2:20
 
-> **Speaker 1 narrates throughout. Speaker 2 drives and stays silent.**
-> S2: click on the **first** word of each cued sentence, not the last. The tool calls rendering on screen are what cover the latency — never let the panel sit blank.
+> **Jayden narrates throughout. William drives and stays silent.**
+> William: click on the **first** word of each cued sentence, not the last. The tool calls rendering on screen are what cover the wait — never let the panel sit blank.
 
 ---
 
-### Beat 1 · 0:20 — The problem, live
+### Beat 1 · 0:25 — The scene, and the dead question
 
-**`[Kick channel on the left, chat flying. Sidekick panel on the right, connected.]`**
+**`[Live Kick channel on the left, chat moving. Sidekick on the right, already connected.]`**
 
-### 🎤 SPEAKER 1
+### 🎤 JAYDEN
 
-> This is a live Kick channel. Fourteen thousand people watching.
+> This is a live Kick channel — `[TBC — channel]`, `[TBC — viewer count]` people watching right now. That's real chat.
 >
-> I've just clicked in. I've got no idea who anyone is or what's going on.
+> There are two people this helps. Someone brand new, who doesn't know the streamer at all. And someone who knows them fine, but tuned in late. We'll show you the second one.
 >
-> So I do the only thing the platform lets me do. **`[S2: TYPE INTO THE REAL KICK CHAT BOX — "wait who's the guy in black?" — SEND]`**
+> So — I've just joined, an hour and a half in, and I've got no idea what I've walked into. I do the only thing the platform lets me do. **`[WILLIAM: TYPE INTO THE REAL KICK CHAT — "what did I miss?" — SEND]`**
 >
 > …and it's gone.
 >
-> That's not a rude chat. That's just what fourteen thousand people looks like.
+> Nobody's being rude. Nobody saw it.
 
 ---
 
-### Beat 2 · 0:35 — Orientation
+### Beat 2 · 0:40 — Ask Sidekick instead
 
-### 🎤 SPEAKER 1
+### 🎤 JAYDEN
 
-> Now the same question, over here. **`[S2: ASK SIDEKICK — "what's going on right now?"]`**
+> Same question, over here. **`[WILLIAM: TYPE INTO SIDEKICK — "I tuned in an hour and a half late, what's happened since?"]`**
 >
-> And you can see what it's doing — it's picking its own tools. Recent chat, the transcript, what's trending. Nobody scripted that.
+> And watch what it's doing — it's picking its own tools. Recent chat, the transcript, what's trending. Nobody scripted that.
 >
-> To be clear: that's the chat you just watched scroll past. We're not replaying a fixture.
+> **`[answer lands]`**
 >
-> **`[S2: ASK — "who is this, why is he famous?"]`** And now I know who I'm listening to. Twenty seconds in.
+> That's the chat you just watched scroll past, read back to me as something I can actually use.
+>
+> `[TBC — one follow-up question, picked on the day once we know what the stream is about. Something only the transcript could answer.]`
 
 ---
 
-### Beat 3 · 0:25 — The two questions chat can't serve
+### Beat 3 · 0:30 — The bit it can't answer
 
-### 🎤 SPEAKER 1
+### 🎤 JAYDEN
 
-> **`[S2: ASK — "what happened five minutes ago?"]`**
+> Now something it genuinely can't know. **`[WILLIAM: ASK — "[TBC — a question only the streamer could answer]"]`**
 >
-> Chat structurally cannot answer that. It's already scrolled away — and asking someone to catch you up is asking for a favour.
+> It doesn't guess. It says that's one for the streamer — and I'm not the only one who's asked.
 >
-> **`[S2: ASK — "why is everyone typing that?"]`**
+> **`[WILLIAM: FLIP TO THE STREAMER VIEW]`**
 >
-> And nobody wants to admit in public that they don't get the joke.
+> Here's his side. That's my question, with everyone else who asked it stacked behind it.
+>
+> He's never had this before. Most of what chat asked never needed him at all — Sidekick already handled it. These few do.
 
 ---
 
-### Beat 4 · 0:30 — The gate, and the flip
+### Beat 4 · 0:25 — The loop ⭐
 
-### 🎤 SPEAKER 1
+> **This is the beat. Never cut it. Don't rush it.**
 
-> Now something it *can't* know. **`[S2: ASK — "when's his next fight?"]`**
+### 🎤 JAYDEN
+
+> So he answers it out loud, the way he always would. **`[WILLIAM: TRIGGER THE ANSWER]`**
 >
-> Watch — it doesn't guess. It says that's one for him. And eleven other people have asked the same thing.
+> Sidekick picks it up. Everyone who asked gets it — in his words.
 >
-> **`[S2: FLIP TO THE STREAMER VIEW]`**
+> **`[WILLIAM: SHOW THE LINE LANDING IN REAL KICK CHAT]`** And one line goes into the real chat, so the whole room gets it too. There it is, on the left.
 >
-> Here's his side. That's my question — row two, eleven people behind it.
+> **`[WILLIAM: RE-ASK AS A NEW VIEWER]`** Someone turns up two minutes later and asks the same thing — instant.
 >
-> This isn't a dashboard. It's the **FAQ of his stream, live**. Most of those questions never needed him at all — Sidekick already answered them. These four do.
+> **He answers once. Everyone who asks after that gets it.**
+
+**`[PAUSE. TWO FULL SECONDS.]`**
 
 ---
 
-### Beat 5 · 0:25 — The loop ⭐
+### Beat 5 · 0:20 — Wild Card: the voice
 
-> **This is the beat. Never cut it. Do not rush it.**
+### 🎤 JAYDEN
 
-### 🎤 SPEAKER 1
+> Last thing. **`[WILLIAM: SWITCH TO THE PHONE FRAME]`**
+>
+> He's not always at a desk. IRL is Kick's fastest-growing content, and there's no second monitor on a bike.
+>
+> **`[WILLIAM: HOLD THE TRIGGER]`** *"What's chat asking?"*
+>
+> Same agent — he's just talking to it instead of typing. And it only answers when he asks.
 
-> So he answers it out loud, the way he always would. **`[S2: TRIGGER THE ANSWER]`**
->
-> Sidekick hears it. Everyone who asked gets it — in his words.
->
-> **`[S2: SHOW THE BOT LINE LANDING IN REAL KICK CHAT]`** One line goes into the real Kick chat. There it is, on the left.
->
-> **`[S2: ROW FLIPS TO ✓]`** And the row closes.
->
-> **`[S2: RE-ASK AS A NEW VIEWER]`** New viewer, two minutes later, asks the same thing — instant.
->
-> **He answered once. Everyone who ever asks again gets it. That's the loop.**
-
-**`[PAUSE. TWO FULL SECONDS. Let it sit.]`**
+**`[WILLIAM: BACK TO SLIDES, AND SPEAKING AGAIN FROM HERE.]`**
 
 ---
 
-### Beat 6 · 0:25 — Wild Card
+## ⏱ 3:45 – 4:05 · SLIDE 4 — Why this is big
 
-### 🎤 SPEAKER 1
-
-> One last thing. **`[S2: SWITCH TO THE PHONE FRAME]`**
->
-> He's not always at a desk. IRL is Kick's fastest-growing content — and there's no second monitor on a bike.
->
-> **`[S2: HOLD THE TRIGGER]`** *"What's chat asking?"*
->
-> Same brain — literally the same endpoint the chat panel calls, just spoken. And it only answers when he asks — nothing's worse than an AI talking over your stream.
->
-> It's a web app, so it works at the desk too.
-
-**`[S2: BACK TO SLIDES]`**
-
----
-
-## ⏱ 3:50 – 4:15 · SLIDE 4 — Why this is big
-
-### 🎤 SPEAKER 2
+### 🎤 WILLIAM
 
 > Quickly — why this matters on Kick specifically.
 >
-> Just Chatting is your number one category — last quarter it was about a quarter of everything watched on Kick. And IRL watch time grew forty-three percent in a single month.
+> Just Chatting is your number one category. Last quarter it was about a quarter of everything watched on Kick. And IRL watch time grew forty-three percent in a single month.
 >
-> **Your biggest category is people talking. Your fastest-growing one is the format where the streamer physically can't look at chat.**
->
-> Two things we'd measure: how many questions get a real answer, and how many of them never had to reach the streamer at all.
+> **Your biggest category is people talking. And your fastest-growing one is the format where the streamer can't look at chat at all.**
 
-*(~70 words.)*
+*(~65 words.)*
 
 ---
 
-## ⏱ 4:15 – 4:40 · SLIDE 5 — What's real, and the ask
+## ⏱ 4:05 – 4:35 · SLIDE 5 — How we built it
 
-### 🎤 SPEAKER 1
+### 🎤 JAYDEN
 
-> On what's actually built: it's a tool-loop agent sitting on your API. It reads live chat, pulls the transcript, and posts back into chat — and it decides which of those it needs, per question.
+> Quick word on how it actually works. **`[gesture at the diagram]`**
 >
-> You paste any channel slug and it connects. No broadcaster sign-off, no login — app tokens can subscribe to any channel, so this works on anyone's stream from a standing start.
+> Chat comes in live off Kick's webhooks. That feeds an agent that picks its own tools — recent chat, the transcript, what's trending, what's already been answered — and it writes back into chat through your Chat API.
 >
-> The voice is the same agent. Speech to text, same agent, text to speech. And because real chat feeds the spoken answer, everything gets scrubbed before it's read out — you don't want your stream saying whatever chat just typed.
+> You paste any channel and it connects. No broadcaster sign-off, no login — app tokens can subscribe to any channel, so it works on anyone's stream from a standing start.
 >
-> The one thing we *didn't* do is put it inside the Kick page. That's your slot to give, not ours to take.
+> And the voice is the same agent. Speech in, same agent, speech out. Because real chat feeds a spoken answer, it all gets scrubbed before it's read aloud — you don't want your stream saying whatever chat just typed.
 
-*(~115 words — the densest section, so keep the pace up. The scrubbing line is worth the three seconds: it's the risk a Kick judge is already thinking about.)*
+*(~120 words — the densest section, keep the pace up. The scrubbing line is worth three seconds: it's the risk a Kick judge is already thinking about.)*
 
 ---
 
-## ⏱ 4:40 – 5:00 · SLIDE 6 — Close
+## ⏱ 4:35 – 5:00 · SLIDE 6 — Close
 
-### 🎤 SPEAKER 1
+### 🎤 WILLIAM
 
-> So: new viewers get context instead of leaving. The streamer sees what his chat actually wants. And every answer he gives keeps working for the rest of the stream.
+> So — new viewers get context instead of leaving. The streamer finds out what his chat actually wants. And every answer he gives keeps working for the rest of the stream.
 >
-> **He answers once. Everyone who ever asks again gets it.**
+> **He answers once. Everyone who asks after that gets it.**
 >
 > We're Team Heidi. Thanks very much.
 
-**`[STOP TALKING. Don't trail off.]`**
+**`[STOP. Don't trail off.]`**
 
 *(~50 words.)*
 
@@ -249,15 +235,15 @@ Decide between you who's who — S1 should be whoever is more comfortable talkin
 
 # RECOVERY LINES
 
-Memorise these. Say them at full volume and keep moving — a recovered demo reads as confidence; a flustered one reads as a broken product.
+Say these at full volume and keep moving. A recovered demo reads as confidence; a flustered one reads as a broken product.
 
 | If… | Say |
 |---|---|
-| An answer hangs >6s | *"It's reading live chat, so it's doing real work — while that lands, here's what it's pulling…"* (then describe the tool calls on screen) |
-| An answer is wrong or weird | *"That's a live model on live chat — it'll do that occasionally. What matters is the next bit."* Move on. Don't debug on stage |
-| The channel goes offline mid-demo | **`[S2: SWITCH TO BACKUP CHANNEL]`** *"Stream just ended — that's live for you. Here's another one."* |
-| Everything breaks | **`[S2: PLAY THE RECORDED RUN]`** *"We'll run the recording — this is the same thing thirty minutes ago."* Keep narrating the same script |
-| You're over time at 3:50 | S2 jumps to Slide 6. S1 says the close only. Skip slides 4 and 5 |
+| An answer hangs >6s | *"It's reading live chat, so it's doing real work — while that lands, here's what it's pulling…"* then describe the tool calls on screen |
+| An answer is wrong or odd | *"That's a live model on live chat — it'll do that occasionally. What matters is the next bit."* Move on. Don't debug on stage |
+| The channel goes offline | **`[WILLIAM: SWITCH TO BACKUP CHANNEL]`** *"Stream just ended — that's live for you. Here's another one."* |
+| Everything breaks | **`[WILLIAM: PLAY THE RECORDED RUN]`** *"We'll run the recording — same thing, half an hour ago."* Jayden keeps narrating the same script |
+| Over time at 3:45 | William jumps to Slide 6 and says the close only. Skip slides 4 and 5 |
 
 ---
 
@@ -266,144 +252,116 @@ Memorise these. Say them at full volume and keep moving — a recovered demo rea
 | They ask | You say |
 |---|---|
 | "Is that actually live?" | "Yeah — pick a channel, we'll paste it in." *(Only offer this if you've tested it.)* |
-| "Isn't this just ChatGPT with the stream in the prompt?" | "The chatbot's the easy half. The product is the gate — knowing what it *can't* answer, and turning that into what the streamer sees." |
-| "Why isn't it inside the Kick page?" | "That's your slot to give. Everything behind it is your real API today — reading chat, writing to chat. Drop it in the chat column and it ships." |
-| "Streamers already ignore dashboards." | "That's why it isn't one. It's four questions instead of four thousand messages, and it empties itself when he talks." |
-| "Won't this kill chat activity?" | "Other way round — asking a bot has no social cost, so lurkers ask. And it clears out the repeat questions that were crowding out actual conversation." |
-| "How does it know what the streamer said?" | "Stream context on our side. The chat and the write-back are your API, straight." |
-| "Isn't the voice agent a separate system?" | "No — it's the same endpoint the chat panel hits. Speech-to-text in front, text-to-speech behind. One brain." |
-| "Doesn't the voice round-trip add latency?" | "The reasoning is in-memory, so the only cost is the speech legs. We render the text the moment it exists and let audio catch up — he sees it before he hears it." |
-| "It's reading live chat — what stops it saying something vile out loud?" | "Everything chat-derived gets scrubbed before it hits text-to-speech. That was the first thing we handled once real chat went in." |
 | "Do you need the streamer's permission to connect?" | "No — app tokens can subscribe to any channel by user id. Paste a slug, it's live. That's your API, not a workaround." |
+| "It's reading live chat — what stops it saying something vile out loud?" | "Everything chat-derived gets scrubbed before text-to-speech. First thing we handled once real chat went in." |
+| "Isn't this just ChatGPT with the stream in the prompt?" | "The chatbot's the easy half. The product is knowing what it *can't* answer, and turning that into what the streamer sees." |
+| "Isn't the voice a separate system?" | "No — same agent. Speech in front, speech behind." |
+| "Doesn't the voice round-trip add latency?" | "We render the text the moment it exists and let the audio catch up — he sees it before he hears it." |
+| "Why isn't it inside the Kick page?" | "That's your slot to give. Everything behind it is your real API today. Drop it in the chat column and it ships." |
+| "Streamers already ignore dashboards." | "That's why it isn't one. It's a handful of questions instead of four thousand messages, and it clears itself when he talks." |
+| "Won't this kill chat activity?" | "Other way round — asking a bot has no social cost, so lurkers ask. And it clears out the repeat questions crowding out real conversation." |
 | "Where's the 24% from?" | "Just Chatting was 303.8 million of your 1.27 billion hours in Q1 — we did the division." |
-| "What about cost at scale?" | "One answer serves everyone in a cluster, and context is a rolling window — so it scales with distinct questions, not with viewers." |
+| "What about cost at scale?" | "One answer serves everyone who asked the same thing, and context is a rolling window — so it scales with distinct questions, not viewers." |
 
 ---
 ---
 
 # DECK BUILD SPEC
 
-> For whoever builds the slides. **Six slides. Build it as a `/deck` route in the existing Next app** so the whole presentation is one fullscreen browser window — arrow keys between slides, one keystroke to the live app. No alt-tab, no desktop, no risk.
-
-## Design system (already in the codebase)
-
-Use the existing tokens in `src/app/globals.css` — don't invent new ones:
-
-| Token | Value | Use |
-|---|---|---|
-| `--color-kick-black` | `#0b0b0c` | Slide background. Every slide |
-| `--color-kick-green` | `#53fc18` | **One** accent per slide. Never two |
-| `--color-kick-surface` | `#171a1c` | Cards, panels |
-| `--color-kick-raised` | `#232629` | Borders, dividers |
-| `--color-kick-muted` | `#9fa6ad` | Secondary text only |
-| `--font-heading` | Booster Polygonal Bold | Display type, uppercase |
-| `--font-sans` | Inter | Everything else |
-
-## Rules
-
-1. **16:9, fullscreen, keyboard nav.** Arrow keys. No transitions beyond a fast fade — animation costs time you don't have.
-2. **Max ~15 words per slide.** The slides are a backdrop, not a teleprompter. If it's in the script it doesn't need to be on the slide.
-3. **Projector legibility.** Nothing under ~28px equivalent. Assume a washed-out projector in a bright room — high contrast only, no mid-grey on dark.
-4. **One idea per slide, one green thing per slide.** The green is the punchline; if two things are green, nothing is.
-5. **No bullet lists**, no icons, no stock imagery, no logos other than a small Kick-adjacent mark if you want one.
-6. **A black slide between Slide 3 and Slide 4** so the demo has somewhere to live.
+> Six content slides plus a black one for the demo. Build as a `/deck` route in the existing app — arrow keys, fullscreen 16:9, one browser window for the whole presentation.
+> Design system, tokens and rules: `DESIGN-PROMPT.md`.
 
 ---
 
-### SLIDE 1 — Title · *0:00–0:20*
-
-**Job:** name the thing, say what it does, establish it's real.
+### SLIDE 1 — Hi, we're Team Heidi · *0:00–0:25*
 
 | Element | Content | Treatment |
 |---|---|---|
-| Wordmark | `SIDEKICK` | Booster, uppercase, dominant — fills most of the width |
-| One-liner | `Answers the questions chat never gets to.` | Inter, large, white |
-| Live pill | `● LIVE ON KICK` | Small, green dot, uppercase, muted text — top or bottom corner |
-| Footer | `Team Heidi · Challenge 02` | Small, muted |
+| Wordmark | `SIDEKICK` | Display face, dominant |
+| One line | `Answers the questions chat never gets to.` | Inter, large, white |
+| Team row | `Team Heidi` — then `William · Jayden · [TBC]` | Small, muted, single horizontal row near the bottom. No photos, no avatars, no role labels |
 
-*Nothing else. This slide is on screen for twenty seconds.*
+The names must be readable without competing with the wordmark. One row, evenly spaced, muted grey.
 
 ---
 
-### SLIDE 2 — The problem · *0:20–1:00*
+### SLIDE 2 — The problem · *0:25–1:05*
 
-**Job:** one stat has to hit, then three consequences.
+**No statistic.** The hero is a sentence, not a number.
 
 | Element | Content | Treatment |
 |---|---|---|
-| Hero stat | `1 MESSAGE EVERY 7.5 SECONDS` | Booster, **enormous** — this is the slide |
-| Caption | `the point live chat stops being a conversation` | Inter, muted, directly beneath |
-| Three consequences | `New viewers leave.` / `Streamers can't read their own chat.` / `Every answer disappears.` | Small, one line each, evenly spaced across the lower third. Plain white |
+| Hero line | `When chat moves this fast, it stops being a conversation.` | Display face, large, filling the upper half. This *is* the slide |
+| Three consequences | `New viewers leave — they never get any context.` · `The streamer can't read it either.` · `And every answer disappears the second it's said.` | Inter, one per line, lower third, evenly spaced. Plain white. No bullets, no icons, no numerals |
 
-**Do not** turn the three consequences into a bulleted list or give them icons. They're a footer to the stat, not a competing element.
+Keep the three lines clearly subordinate to the hero — a footer to it, not a competing list.
 
-> ⚠️ **The 7-second stat is provisional.** It's real research but it's from 2016 and measured on another platform — not citable in this room. Replace it with our own measurement off a live Kick channel: `[CHANNEL] · N MESSAGES IN 5 MINUTES`. Build the stat as a single swappable string.
+> If a live Kick chat measurement lands before the deadline, it becomes a small muted caption under the hero (e.g. `412 messages in 5 minutes on [channel]`) — **not** a replacement for the sentence. Build that caption as an optional swappable string.
 
 ---
 
-### SLIDE 3 — The solution · *1:00–1:20*
+### SLIDE 3 — Our solution · *1:05–1:25* — **redesigned**
 
-**Job:** three surfaces in one glance, ending on the punchline.
-
-Three stacked rows, generous spacing:
+The old three-row list is gone. Two blocks with a connector between them, because the connector *is* the product.
 
 ```
-   VIEWERS      →   get an answer
-   THE STREAMER →   sees what everyone's asking
-   NOBODY       →   gets a dashboard
+   ┌────────────────────────┐                      ┌────────────────────────┐
+   │  VIEWERS               │                      │  THE STREAMER          │
+   │                        │   what it can't      │                        │
+   │  Ask anything about    │  ───  answer  ──▶    │  Sees what chat is     │
+   │  the stream. Get an    │                      │  actually asking.      │
+   │  answer in seconds.    │                      │                        │
+   └────────────────────────┘                      └────────────────────────┘
 ```
 
 | Element | Treatment |
 |---|---|
-| Left column (`VIEWERS` / `THE STREAMER` / `NOBODY`) | Booster, uppercase, muted grey |
-| Right column | Inter, large, white |
-| **`gets a dashboard`** | **Green.** The only green on the slide |
+| Two blocks | Equal width, `--card` background, 4px radius, 1px border. Balanced — neither dominates |
+| Block labels (`VIEWERS`, `THE STREAMER`) | Small, muted, uppercase, Inter |
+| Block body | Inter, large, white |
+| The connector | Horizontal rule or arrow between the blocks, **green**, with `what it can't answer` as a small label sitting on it |
 
-The joke lands because the third row breaks the pattern. Keep the rows visually identical so the break is doing the work.
-
----
-
-### ⬛ BLACK SLIDE — the demo lives here · *1:20–3:50*
-
-Pure `#0b0b0c`, nothing on it. S2 switches to the live app from here and comes back to it.
+The green connector is the only green on the slide, and it carries the whole idea: these aren't two features, they're one flow. If the blocks ever stack on a narrower render, the arrow rotates to point down — the two blocks must never read as an unconnected pair.
 
 ---
 
-### SLIDE 4 — Why this is big · *3:50–4:15*
+### ⬛ BLACK SLIDE — the demo · *1:25–3:45*
 
-**Job:** two Kick numbers, one conclusion, two metrics.
+Empty `#0b0b0c`. Nothing on it.
+
+---
+
+### SLIDE 4 — Why this is big · *3:45–4:05*
 
 | Element | Content | Treatment |
 |---|---|---|
-| Stat A | `24%` + caption `of Kick hours watched are Just Chatting` | Booster, large. Side by side with Stat B |
-| Stat B | `IRL > ACTION` + caption `IRL overtook Action games, May 2026` | Booster, large |
-| Conclusion | `Your biggest category is people talking.` | Inter, large, **green**, centred beneath the two stats |
-| Metrics strip | `Answered-question rate` · `Self-serve rate` | Small, muted, single line at the very bottom |
+| Stat A | `24%` — caption `of everything watched on Kick in Q1 was Just Chatting` | Display face, large. Side by side with B |
+| Stat B | `+43%` — caption `IRL watch time growth in a single month` | Display face, large |
+| Conclusion | `Kick's biggest category is people talking.` | Inter, large, **green**, centred beneath. Only green on the slide |
 
 ---
 
-### SLIDE 5 — What's real, and the ask · *4:15–4:40*
+### SLIDE 5 — How we built it · *4:05–4:35* — **the technical slide**
 
-**Job:** credibility, then the ask. This slide is doing the Technical Execution work.
+Densest slide in the deck. A diagram on top, two titled columns underneath.
 
-| Element | Content | Treatment |
+| Area | Title | Content |
 |---|---|---|
-| Heading | `NONE OF THIS IS MOCKED` | Booster, uppercase, large |
-| Four lines | `Paste any channel — it connects. No sign-off needed.` · `Tool-loop agent over live chat, transcript and trends.` · `Posts back into chat through the Chat API.` · `Voice is the same agent, spoken.` | Inter, white, one per line, with a small green tick each |
-| Divider | — | Thin `--color-kick-raised` rule |
-| The ask | `The one thing we didn't build: the embed slot.` | Inter, large, **green** |
+| **Top ~55%** | *(no title — the diagram speaks)* | **`[TBC — DIAGRAM PLACEHOLDER]`** Reserve the space now, drop the image in later. Rough shape: `Kick webhooks → live chat → agent (picks its own tools) → answer → back into Kick chat`, with a branch off the agent for `voice: speech in / speech out`. Put a bordered `--card` panel at the right aspect ratio so nothing shifts when the real diagram arrives |
+| **Bottom left** | `HOW IT WORKS` | `Live chat in through Kick webhooks.` · `An agent that picks its own tools — chat, transcript, trends.` · `Writes back through the Chat API.` · `Voice is the same agent, spoken.` |
+| **Bottom right** | `WHAT WE DIDN'T DO` | `No mocked chat — it's a live channel.` · `No second agent for the voice.` · `No dashboard.` · `Not injected into the Kick page — you paste a link.` |
 
-Keep the ask visually equal in weight to the heading. It's not a caveat, it's the close of the technical argument.
+Section titles small, muted, uppercase — the content lines should read first. Four short lines per column, one line each; if any wraps, cut words until it doesn't.
+
+`WHAT WE DIDN'T DO` is doing real work — it reads as deliberate engineering choices rather than gaps. Give it **equal** visual weight to `HOW IT WORKS`, not a lesser treatment.
 
 ---
 
-### SLIDE 6 — Close · *4:40–5:00*
-
-**Job:** one sentence they can repeat in the judging room.
+### SLIDE 6 — Close · *4:35–5:00*
 
 | Element | Content | Treatment |
 |---|---|---|
-| The line | `He answers once. Everyone who ever asks again gets it.` | Booster or heavy Inter, **enormous**, centred, fills the slide. `once` and `everyone` may be green |
-| Footer | `Team Heidi · Thank you` | Small, muted, bottom |
+| The line | `He answers once. Everyone who asks after that gets it.` | Display face, enormous, centred, filling the slide. `once` may be green |
+| Footer | `Team Heidi · Thanks` | Small, muted, bottom |
 
-Nothing else on this slide. No logo lockup, no team photo, no QR code.
+Nothing else. No logo, no QR code, no team photo.
