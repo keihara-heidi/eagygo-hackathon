@@ -111,10 +111,10 @@ export function VoiceChatOverlay({ events }: { events: StampedEvent[] }) {
   }, [events]);
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center px-6">
+    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 px-3">
       <div
         ref={viewportRef}
-        className="flex max-h-56 w-full max-w-[320px] flex-col items-center gap-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_22%)]"
+        className="flex max-h-56 w-[85%] max-w-[320px] flex-col items-start gap-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_22%)]"
       >
         {events.slice(-40).map((event) => (
           <OverlayLine key={event.seq} event={event} />

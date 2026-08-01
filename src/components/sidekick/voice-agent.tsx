@@ -13,7 +13,6 @@ import {
   MessageCircleQuestion,
   RefreshCcw,
   UserPlus,
-  X,
 } from "lucide-react";
 
 import { apiClient } from "@/lib/api-client";
@@ -30,23 +29,6 @@ interface TranscriptLine {
   id: string;
   role: "user" | "ai";
   text: string;
-}
-
-function Waveform({ active }: { active: boolean }) {
-  return (
-    <span className="flex h-5 items-center gap-[3px]">
-      {[0, 1, 2, 3, 4].map((bar) => (
-        <span
-          key={bar}
-          className={cn(
-            "w-[4px] rounded-full bg-primary transition-all",
-            active ? "sidekick-wave-bar h-5" : "h-1.5 opacity-40",
-          )}
-          style={{ animationDelay: `${bar * 0.12}s` }}
-        />
-      ))}
-    </span>
-  );
 }
 
 /** Kick's blocky pixel-K mark, drawn inline (kick.com blocks asset hotlinks). */
@@ -73,11 +55,13 @@ function isPttKey(event: KeyboardEvent): boolean {
 }
 
 /**
- * Wispr Flow-style push-to-talk HUD: invisible when idle. Hold the trigger
- * key to open the session and show the pill; on release the mic turn ends,
- * and the pill stays up just long enough for Sidekick to finish answering.
+ * Push-to-talk indicator, Siri-style: while the trigger key is held the whole
+ * screen edge glows green (breathing = listening, fast pulse = Sidekick
+ * speaking) with a small pixel-K floating up top. No pill, no text — answers
+ * are voice-only. On release the session stays alive just long enough for
+ * Sidekick to finish answering. Escape force-ends.
  */
-function WhisprPill({ transcript }: { transcript: TranscriptLine[] }) {
+function VoiceGlow({ transcript }: { transcript: TranscriptLine[] }) {
   const { startSession, endSession } = useConversationControls();
   const { status } = useConversationStatus();
   const { isSpeaking } = useConversationMode();
@@ -98,6 +82,11 @@ function WhisprPill({ transcript }: { transcript: TranscriptLine[] }) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        void endSession();
+        setHeld(false);
+        return;
+      }
       if (!isPttKey(event) || event.repeat) return;
       event.preventDefault();
       setHeld(true);
@@ -120,7 +109,7 @@ function WhisprPill({ transcript }: { transcript: TranscriptLine[] }) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [connected, startSession]);
+  }, [connected, startSession, endSession]);
 
   // After release: let Sidekick finish speaking, then close the session.
   // Grace is long while we still await the answer, short once it has landed.
@@ -133,31 +122,27 @@ function WhisprPill({ transcript }: { transcript: TranscriptLine[] }) {
 
   if (!visible) return null;
 
-  const label = !connected ? "Connecting…" : isSpeaking ? "Speaking…" : "Listening";
-
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-20 z-30 flex justify-center">
-      <div className={cn("pointer-events-auto relative", haptic && "sidekick-haptic")}>
-        <div className="flex items-center gap-3 rounded-full bg-black/90 py-2.5 pl-3.5 pr-4 shadow-2xl shadow-black/70 backdrop-blur">
-          <KickLogo
-            className={cn(
-              "size-5 text-primary transition-transform",
-              isSpeaking && "animate-pulse",
-            )}
-          />
-          <span className="text-sm font-semibold text-white">{label}</span>
-          <Waveform active={connected} />
-        </div>
-        <button
-          type="button"
-          onClick={() => void endSession()}
-          className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-white/25 text-white backdrop-blur hover:bg-white/40"
-          aria-label="End voice session"
-        >
-          <X className="size-3" />
-        </button>
+    <>
+      {/* edge glow across the whole phone screen */}
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 z-30 sm:rounded-[36px]",
+          "sidekick-glow",
+          isSpeaking ? "sidekick-glow-speaking" : "sidekick-glow-listening",
+          haptic && "sidekick-haptic",
+        )}
+      />
+      {/* floating brand mark, no chrome */}
+      <div className="pointer-events-none absolute inset-x-0 top-16 z-30 flex justify-center">
+        <KickLogo
+          className={cn(
+            "size-7 text-primary drop-shadow-[0_0_12px_rgba(83,252,24,0.8)]",
+            isSpeaking ? "animate-pulse" : "sidekick-glow-listening",
+          )}
+        />
       </div>
-    </div>
+    </>
   );
 }
 
@@ -222,14 +207,14 @@ function CameraFeed() {
 }
 
 function DemoTriggers() {
-  const trigger = (payload: Record<string, unknown>) =>
-    void apiClient.post("/demo/trigger", payload);
+  const trigger = (scenario: string) =>
+    void apiClient.post("/demo", { action: "trigger", scenario });
   return (
     <div className="flex items-center gap-1">
       <button
         type="button"
         title="Hype spike"
-        onClick={() => trigger({ action: "hype" })}
+        onClick={() => trigger("hype_spike")}
         className="rounded-full bg-black/30 p-1.5 text-white/40 hover:text-orange-400"
       >
         <Flame className="size-3.5" />
@@ -237,7 +222,7 @@ function DemoTriggers() {
       <button
         type="button"
         title="Question flood"
-        onClick={() => trigger({ action: "question_flood", topic: "schedule" })}
+        onClick={() => trigger("question_flood")}
         className="rounded-full bg-black/30 p-1.5 text-white/40 hover:text-sky-400"
       >
         <MessageCircleQuestion className="size-3.5" />
@@ -245,7 +230,7 @@ function DemoTriggers() {
       <button
         type="button"
         title="New viewer"
-        onClick={() => trigger({ action: "new_viewer" })}
+        onClick={() => trigger("new_viewer")}
         className="rounded-full bg-black/30 p-1.5 text-white/40 hover:text-primary"
       >
         <UserPlus className="size-3.5" />
@@ -328,7 +313,7 @@ export function VoiceAgent() {
           </button>
 
           <VoiceChatOverlay events={events} />
-          <WhisprPill transcript={transcript} />
+          <VoiceGlow transcript={transcript} />
         </div>
       </div>
     </ConversationProvider>
