@@ -22,6 +22,7 @@ const NUMBERED_LIST_PATTERN = /(?:^|\s)\d+\.\s/;
  */
 function cleanSpokenAnswer(text: string, question: string): string | null {
   const recap = RECAP_PATTERN.test(question);
+  const maxSentences = recap ? 3 : 2;
   const maxWords = recap ? 90 : 60;
   const paragraphs = text
     .split(/\n{2,}/)
@@ -40,8 +41,14 @@ function cleanSpokenAnswer(text: string, question: string): string | null {
     return null;
   }
 
-  const words = candidate.split(/\s+/);
-  if (words.length <= maxWords) return candidate;
+  const sentences =
+    candidate.match(/[^.!?]+(?:[.!?]+["']?)(?=\s|$)|[^.!?]+$/g)?.map((part) => part.trim()) ??
+    [];
+  const spoken = sentences.slice(0, maxSentences).join(" ").trim();
+  if (!spoken) return null;
+
+  const words = spoken.split(/\s+/);
+  if (words.length <= maxWords) return spoken;
 
   const window = words.slice(0, maxWords).join(" ");
   const boundary = Math.max(window.lastIndexOf("."), window.lastIndexOf("!"), window.lastIndexOf("?"));
