@@ -286,6 +286,8 @@ async function triggerDemo(action: "hype" | "question_flood" | "new_viewer") {
   });
 }
 
+// Streamer-facing control room: this page is intentionally read-only chat +
+// insight cues for the person live on stream, not a viewer copilot surface.
 export default function StreamDashboardPage() {
   const [events, setEvents] = useState<SidekickEvent[]>([]);
   const [connectionState, setConnectionState] = useState<ConnectionState>("connecting");

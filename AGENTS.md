@@ -19,7 +19,7 @@ KICK hackathon project. Brief: `chat-insights-engagement-brief.md`. Submission d
 
 Spec of record: `SPEC.md` (Sidekick — AI middleman for Kick chat), including the 2-minute demo script and the task split. Checkpoints: integration 2:00 PM, feature freeze 3:15 PM, final push 3:45 PM.
 
-One seam: the chat event stream. A mock chat-engine adapter now (scripted, docs-faithful events with demo controls), a KICK webhook-receiver adapter later — same interface. Behind the seam sits the Insight Engine as the deep module: rolling word/emote frequency buckets, question detection + similarity clustering, vibe classification, chatter identity tracking, answered-question store. It lives in Next.js server code (API routes); clients update via SSE or polling. Thin surfaces at the edges: viewer copilot widget (`/`), chat-native bot digest + `!answered` command, voice agent (`/voice`).
+One seam: the chat event stream. A mock chat-engine adapter now (scripted, docs-faithful events with demo controls), a KICK webhook-receiver adapter later — same interface. Behind the seam sits the Insight Engine as the deep module: rolling word/emote frequency buckets, question detection + similarity clustering, vibe classification, chatter identity tracking, answered-question store. It lives in Next.js server code (API routes); clients update via SSE or polling. Thin surfaces at the edges: viewer copilot widget (`/`), streamer read-only dashboard (`/stream-dashboard`, mobile-screen locked), chat-native bot digest + `!answered` command, voice agent (`/voice`).
 
 ## The KICK module — `src/lib/kick/`
 
