@@ -40,7 +40,7 @@ import type { StampedEvent } from "@/lib/chat-engine/types";
 import { streamContextQueryOptions } from "@/lib/viewer-chat-api";
 
 interface ViewerChatProps {
-  username: string;
+  username?: string;
 }
 
 type KickActivityKind =
@@ -227,6 +227,7 @@ function LiveKickActivityBar({
 }
 
 export function ViewerChat({ username }: ViewerChatProps) {
+  const viewerName = username ?? "viewer";
   const streamContext = useQuery(streamContextQueryOptions);
   const { stream: connectedStream } = useConnectedKickStream();
   const { messages, sendMessage, isPending, isStreaming, isError } = useSidekickAgentChat();
@@ -259,13 +260,15 @@ export function ViewerChat({ username }: ViewerChatProps) {
               {streamer ? `Watching @${streamer}` : "KICK chat context"}
             </div>
             <span className="max-w-28 truncate text-xs font-medium text-foreground/80">
-              @{username}
+              @{viewerName}
             </span>
-            <form action="/api/auth/logout" method="post">
-              <Button aria-label="Log out" size="icon-sm" type="submit" variant="ghost">
-                <LogOut className="size-4" />
-              </Button>
-            </form>
+            {username ? (
+              <form action="/api/auth/logout" method="post">
+                <Button aria-label="Log out" size="icon-sm" type="submit" variant="ghost">
+                  <LogOut className="size-4" />
+                </Button>
+              </form>
+            ) : null}
           </div>
         </div>
       </header>
@@ -341,7 +344,7 @@ export function ViewerChat({ username }: ViewerChatProps) {
                                 message.role === "assistant" ? "text-primary" : "text-chart-3"
                               }`}
                             >
-                              {message.role === "assistant" ? "Sidekick" : `You · @${username}`}
+                              {message.role === "assistant" ? "Sidekick" : `You · @${viewerName}`}
                             </p>
                             {message.role === "assistant" && message.toolCalls?.length ? (
                               <div className="space-y-1 border-l-2 border-primary bg-background px-3 py-2 font-mono text-[11px] text-muted-foreground">
