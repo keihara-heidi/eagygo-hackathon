@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
 
-import { getSidekickAgent, getSidekickModel } from "@/lib/sidekick/agent";
+import { getFastSidekickAgent, getSpeechModel } from "@/lib/sidekick/agent";
 import { maskSpeech } from "@/lib/sidekick/clean-speech";
 import { postVoiceBriefing } from "@/lib/sidekick/voice-briefing";
 
@@ -10,26 +10,32 @@ import { POST as scriptedAsk } from "../../copilot/ask/route";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-const REPHRASE_SYSTEM = [
-  "You compress a stream copilot's answer for text-to-speech.",
-  "Output ONLY the rewritten text: at most two short spoken sentences, under 45 words total.",
-  "Keep the most important facts and numbers from the input.",
-  "Never add information that is not in the input. Never answer questions yourself.",
-  "Never speak as the streamer — you are the copilot reporting about chat.",
-  "No quotes, no preamble, no lists, no markdown, no emojis.",
-].join(" ");
+function rephraseSystem(budget: { sentences: number; words: number }): string {
+  return [
+    "You compress a stream copilot's answer for text-to-speech.",
+    `Output ONLY the rewritten text: at most ${budget.sentences} short spoken sentences, under ${budget.words} words total.`,
+    "Keep the most important facts and numbers from the input.",
+    "Never add information that is not in the input. Never answer questions yourself.",
+    "Never speak as the streamer — you are the copilot reporting about chat.",
+    "No quotes, no preamble, no lists, no markdown, no emojis.",
+  ].join(" ");
+}
+
+/** Recaps carry more ground to cover, so they get a slightly longer spoken budget. */
+const RECAP_PATTERN = /recap|catch me up|catch up|what did i miss|missed/i;
 
 /** Skip the compression pass when the agent was already brief. */
 const REPHRASE_THRESHOLD_CHARS = 180;
 
 /** Strips preambles/quotes the rephrase model occasionally adds anyway. */
-function cleanRephrased(text: string): string {
+function cleanRephrased(text: string, maxSentences: number): string {
   let cleaned = text.trim();
   cleaned = cleaned.replace(/^here'?s[^:\n]*:\s*/i, "");
   cleaned = cleaned.replace(/^"([\s\S]*)"$/m, "$1");
-  // Hard cap at three sentences as a last resort.
   const sentences = cleaned.match(/[^.!?]+[.!?]+/g);
-  if (sentences && sentences.length > 3) cleaned = sentences.slice(0, 3).join(" ");
+  if (sentences && sentences.length > maxSentences) {
+    cleaned = sentences.slice(0, maxSentences).join(" ");
+  }
   return cleaned.trim();
 }
 
@@ -64,7 +70,7 @@ export async function POST(request: Request) {
     void postVoiceBriefing().catch(() => {});
   }
 
-  const agent = getSidekickAgent();
+  const agent = getFastSidekickAgent();
   let answer: string;
   let source = "scripted";
 
@@ -74,16 +80,19 @@ export async function POST(request: Request) {
       answer = result.text.trim();
       source = "agent";
 
-      const model = getSidekickModel();
+      const model = getSpeechModel();
+      const budget = RECAP_PATTERN.test(question)
+        ? { sentences: 3, words: 70 }
+        : { sentences: 2, words: 45 };
       if (model && answer.length > REPHRASE_THRESHOLD_CHARS) {
         const compressed = await generateText({
           model,
-          system: REPHRASE_SYSTEM,
+          system: rephraseSystem(budget),
           prompt: answer,
-          maxOutputTokens: 150,
+          maxOutputTokens: 200,
           temperature: 0.3,
         });
-        const cleaned = cleanRephrased(compressed.text);
+        const cleaned = cleanRephrased(compressed.text, budget.sentences + 1);
         if (cleaned) {
           answer = cleaned;
           source = "agent+rephrase";

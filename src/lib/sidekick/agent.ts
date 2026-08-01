@@ -23,19 +23,27 @@ const DEFAULT_MODELS = {
   fireworks: "accounts/fireworks/models/glm-5p2",
 } as const;
 
+/** Small/fast models for auxiliary rewrite passes that sit in a latency budget. */
+const FAST_MODELS = {
+  anthropic: "claude-haiku-4-5",
+  fireworks: "accounts/fireworks/models/glm-5p2",
+} as const;
+
+function resolveProvider(): "anthropic" | "fireworks" | null {
+  const forced = process.env.SIDEKICK_LLM;
+  if (forced === "off") return null;
+  if (forced === "anthropic" || forced === "fireworks") return forced;
+  if (process.env.ANTHROPIC_API_KEY) return "anthropic";
+  if (process.env.FIREWORKS_API_KEY) return "fireworks";
+  return null;
+}
+
 function resolveModel(): LanguageModel | null {
   const forced = process.env.SIDEKICK_LLM;
   if (forced === "off") return null;
 
   const override = process.env.SIDEKICK_LLM_MODEL;
-  const provider =
-    forced === "anthropic" || forced === "fireworks"
-      ? forced
-      : process.env.ANTHROPIC_API_KEY
-        ? "anthropic"
-        : process.env.FIREWORKS_API_KEY
-          ? "fireworks"
-          : null;
+  const provider = resolveProvider();
 
   switch (provider) {
     case "anthropic":
@@ -177,6 +185,7 @@ export type SidekickAgent = ReturnType<typeof buildAgent>;
 export type SidekickUIMessage = InferAgentUIMessage<SidekickAgent>;
 
 let cachedAgent: SidekickAgent | null | undefined;
+let cachedFastAgent: SidekickAgent | null | undefined;
 
 /** The LLM agent, or null when no provider is configured (scripted fallback). */
 export function getSidekickAgent(): SidekickAgent | null {
@@ -187,8 +196,37 @@ export function getSidekickAgent(): SidekickAgent | null {
   return cachedAgent;
 }
 
-/** The raw model (same provider resolution), for auxiliary single-shot calls
- * like the voice pipeline's speech-compression pass. */
+/**
+ * Same brain, same tools, small model. The voice path speaks two sentences and
+ * the streamer is waiting mid-stream, so it trades reasoning depth for the
+ * seconds that make push-to-talk feel like a conversation.
+ */
+export function getFastSidekickAgent(): SidekickAgent | null {
+  if (cachedFastAgent === undefined) {
+    const model = getSpeechModel();
+    cachedFastAgent = model ? buildAgent(model) : null;
+  }
+  return cachedFastAgent;
+}
+
+/** The raw model (same provider resolution), for auxiliary single-shot calls. */
 export function getSidekickModel(): LanguageModel | null {
   return resolveModel();
+}
+
+/**
+ * A fast model for auxiliary single-shot rewrites (the voice pipeline's
+ * speech-compression pass). Same provider as the agent, smaller model: the
+ * rewrite carries no reasoning load and sits inside the spoken-latency budget.
+ */
+export function getSpeechModel(): LanguageModel | null {
+  const override = process.env.SIDEKICK_SPEECH_MODEL;
+  switch (resolveProvider()) {
+    case "anthropic":
+      return anthropic(override ?? FAST_MODELS.anthropic);
+    case "fireworks":
+      return fireworks(override ?? FAST_MODELS.fireworks);
+    default:
+      return null;
+  }
 }
