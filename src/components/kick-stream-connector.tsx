@@ -23,10 +23,20 @@ export function KickStreamConnector({ className }: KickStreamConnectorProps) {
     if (connecting) return;
     setConnecting(true);
     setError(null);
+    console.info("[kick-connect-ui] connecting", { input: value });
     try {
       const result = await connect(value);
       setError(result.ok ? null : result.error);
-      if (result.ok) setValue(result.stream.url);
+      if (result.ok) {
+        console.info("[kick-connect-ui] connected", {
+          slug: result.stream.slug,
+          broadcasterUserId: result.stream.broadcasterUserId,
+          viewerCount: result.stream.viewerCount,
+        });
+        setValue(result.stream.url);
+      } else {
+        console.error("[kick-connect-ui] failed", { input: value, message: result.error });
+      }
     } finally {
       setConnecting(false);
     }

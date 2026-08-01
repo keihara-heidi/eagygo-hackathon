@@ -40,31 +40,62 @@ export function useKickStreamEvents({
     const url = new URL(endpoint, window.location.origin);
     if (fromSeq !== undefined) url.searchParams.set("fromSeq", String(fromSeq));
 
+    console.info("[kick-stream-events] opening SSE", { url: url.toString() });
     const source = new EventSource(url.toString());
 
     source.onopen = () => {
+      console.info("[kick-stream-events] SSE open", {
+        endpoint,
+        readyState: source.readyState,
+      });
       setConnectionState("live");
       setError(null);
     };
 
     source.onerror = (event) => {
+      const nextState = source.readyState === EventSource.CLOSED ? "closed" : "reconnecting";
+      console.error("[kick-stream-events] SSE error", {
+        endpoint,
+        readyState: source.readyState,
+        nextState,
+        event,
+      });
       setError(event);
-      setConnectionState(
-        source.readyState === EventSource.CLOSED ? "closed" : "reconnecting",
-      );
+      setConnectionState(nextState);
     };
 
     source.onmessage = (message) => {
       const incoming = JSON.parse(message.data) as StampedEvent;
+      console.info("[kick-stream-events] event received", {
+        seq: incoming.seq,
+        type: incoming.event.type,
+        broadcasterUserId: incoming.event.payload.broadcaster.user_id,
+        receivedAt: incoming.received_at,
+      });
       onEventRef.current?.(incoming);
       setEvents((current) => {
-        if (current.some((event) => event.seq === incoming.seq)) return current;
-        return [...current, incoming].slice(-maxEvents);
+        if (current.some((event) => event.seq === incoming.seq)) {
+          console.info("[kick-stream-events] duplicate skipped", { seq: incoming.seq });
+          return current;
+        }
+        const next = [...current, incoming].slice(-maxEvents);
+        console.info("[kick-stream-events] event stored", {
+          seq: incoming.seq,
+          count: next.length,
+          maxEvents,
+        });
+        return next;
       });
       setConnectionState("live");
     };
 
-    return () => source.close();
+    return () => {
+      console.info("[kick-stream-events] closing SSE", {
+        endpoint,
+        readyState: source.readyState,
+      });
+      source.close();
+    };
   }, [enabled, endpoint, fromSeq, maxEvents]);
 
   return {

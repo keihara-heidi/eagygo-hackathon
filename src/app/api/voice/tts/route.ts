@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { maskSpeech } from "@/lib/sidekick/clean-speech";
+
 export const dynamic = "force-dynamic";
 
 const VOICE_ID = "TvYCW7acMEs9RZ2kkcBn"; // Judy Y — friendly Australian woman, conversational
@@ -13,7 +15,9 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json().catch(() => null)) as { text?: unknown } | null;
-  const text = typeof body?.text === "string" ? body.text.trim() : "";
+  // Final safety net: chat-derived content is already masked upstream, but
+  // nothing profane should ever reach the speaker regardless of source.
+  const text = typeof body?.text === "string" ? maskSpeech(body.text.trim()) : "";
   if (!text || text.length > 1_000) {
     return NextResponse.json(
       { error: "text must be a non-empty string of at most 1000 chars" },

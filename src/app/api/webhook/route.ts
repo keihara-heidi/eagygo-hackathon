@@ -43,17 +43,27 @@ export async function POST(request: Request) {
   const versionHeader = request.headers.get("Kick-Event-Version");
 
   if (!messageId || !timestamp || !signature || !eventType) {
+    console.warn("[webhook] missing headers", {
+      hasMessageId: Boolean(messageId),
+      hasTimestamp: Boolean(timestamp),
+      hasSignature: Boolean(signature),
+      eventType,
+    });
     return Response.json({ error: "missing Kick-Event-* headers" }, { status: 400 });
   }
+
+  console.info("[webhook] received", { messageId, eventType, versionHeader });
 
   // Raw text before JSON.parse — the signature covers the exact bytes sent.
   const rawBody = await request.text();
   const valid = await verifyWebhookSignature({ messageId, timestamp, rawBody, signature });
   if (!valid) {
+    console.warn("[webhook] invalid signature", { messageId, eventType });
     return Response.json({ error: "invalid signature" }, { status: 401 });
   }
 
   if (isDuplicate(messageId)) {
+    console.info("[webhook] duplicate ignored", { messageId, eventType });
     return Response.json({ ok: true, duplicate: true });
   }
 
@@ -71,10 +81,16 @@ export async function POST(request: Request) {
   }
 
   const eventVersion = versionHeader === null ? undefined : Number(versionHeader);
-  getChatEngine().publish({
+  const stamped = getChatEngine().publish({
     eventType,
     ...(eventVersion !== undefined && !Number.isNaN(eventVersion) ? { eventVersion } : {}),
     body,
+  });
+  console.info("[webhook] published", {
+    messageId,
+    eventType,
+    seq: stamped.seq,
+    broadcasterUserId: stamped.event.payload.broadcaster.user_id,
   });
 
   return Response.json({ ok: true });
