@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KICK Chat Data — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/lesson.css">
+</head>
+<body>
+
+<p class="kicker">Reference · KICK Hackathon</p>
+<h1>KICK chat data, at a glance</h1>
+<p class="meta">Compressed from <a href="https://docs.kick.com/events/event-types">docs.kick.com/events/event-types</a> and <a href="https://docs.kick.com/apis/chat">docs.kick.com/apis/chat</a> · Pairs with <a href="../lessons/0001-pick-a-chat-prototype-direction.html">Lesson 0001</a></p>
+
+<h2>The one event that matters: <code>chat.message.sent</code></h2>
+<table>
+  <tr><th>Payload field</th><th>Signal you can extract</th></tr>
+  <tr><td><code>content</code></td><td>Raw text (max 500 chars). Keywords, commands (<code>!vote</code>), sentiment heuristics. Emotes appear inline as <code>[emote:4148074:HYPERCLAP]</code>.</td></tr>
+  <tr><td><code>emotes[]</code></td><td>Pre-parsed emote IDs with string positions. Emote density / trending emotes with zero parsing work.</td></tr>
+  <tr><td><code>sender.identity.badges[]</code></td><td><code>moderator</code>, <code>subscriber</code> (count = months), <code>sub_gifter</code> (count = gifts). "Who's showing up" as structured data.</td></tr>
+  <tr><td><code>sender.identity.username_color</code></td><td>Cosmetic — useful for rendering a faithful mock chat.</td></tr>
+  <tr><td><code>replies_to</code></td><td>Parent message + sender. Conversation threading; "what's landing".</td></tr>
+  <tr><td><code>created_at</code></td><td>Message-rate and hype-velocity windows.</td></tr>
+  <tr><td><code>message_id</code></td><td>Needed as <code>reply_to_message_id</code> when the bot replies.</td></tr>
+</table>
+
+<h2>Supporting events</h2>
+<table>
+  <tr><th>Event</th><th>Use it for</th></tr>
+  <tr><td><code>kicks.gifted</code></td><td>Hype moments — gift name, tier, amount, <code>pinned_time_seconds</code>. Natural meter boost.</td></tr>
+  <tr><td><code>channel.reward.redemption.updated</code></td><td>Viewer participation with free-text <code>user_input</code>; status <code>pending/accepted/rejected</code>.</td></tr>
+  <tr><td><code>channel.followed</code> / <code>channel.subscription.*</code></td><td>Audience-growth moments for a dashboard ticker.</td></tr>
+  <tr><td><code>livestream.status.updated</code></td><td>Stream start/end — clean session boundaries for a demo script.</td></tr>
+  <tr><td><code>livestream.metadata.updated</code></td><td>Title/category changes — visible when chat "shapes the stream".</td></tr>
+  <tr><td><code>moderation.banned</code></td><td>Probably skip today.</td></tr>
+</table>
+
+<h2>Write surfaces — how chat talks back</h2>
+<table>
+  <tr><th>Surface</th><th>What it buys</th></tr>
+  <tr><td><code>POST /public/v1/chat</code></td><td>Bot messages, threaded via <code>reply_to_message_id</code>. Scope: <code>chat:write</code>.</td></tr>
+  <tr><td>Channel Rewards CRUD</td><td>Create/edit channel-point rewards programmatically. Scope: <code>channel:rewards:write</code>.</td></tr>
+  <tr><td>Update livestream metadata</td><td>Rewrite the stream title live. Scope: <code>channel:write</code>.</td></tr>
+  <tr><td><code>DELETE /public/v1/chat/{id}</code></td><td>Message moderation. Scope: <code>moderation:chat_message:manage</code>.</td></tr>
+</table>
+
+<h2>Mock-data rule of thumb</h2>
+<p>The brief requires mocks to reflect real KICK data. Copy the documented JSON shapes verbatim — field names, nesting, <code>[emote:id:NAME]</code> markup — and vary only the values. If a field isn't in the docs, don't invent it in the demo.</p>
+
+<footer>
+  Reference · KICK Hackathon — <a href="../lessons/0001-pick-a-chat-prototype-direction.html">Lesson 0001: Picking a chat prototype direction</a>
+</footer>
+
+</body>
+</html>

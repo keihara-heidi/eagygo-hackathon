@@ -1,0 +1,232 @@
+/* Shared stylesheet for all lessons and reference documents.
+   Tufte-inspired: one measure of serif text, hairline rules, a single accent. */
+
+:root {
+  --ink: #1b1b1b;
+  --ink-soft: #4a4a4a;
+  --ink-faint: #8a8a8a;
+  --paper: #fdfcf8;
+  --accent: #1c7c3c;
+  --accent-soft: #eaf5ec;
+  --danger: #b3362b;
+  --danger-soft: #f9ecea;
+  --rule: #e3e0d8;
+}
+
+* { box-sizing: border-box; }
+
+html { margin: 0; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 1.5rem 5rem;
+  max-width: 42rem;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+/* ---------- Type ---------- */
+
+h1 {
+  font-size: 1.65rem;
+  line-height: 1.25;
+  margin: 0.35rem 0 0.5rem;
+  font-weight: 600;
+}
+
+h2 {
+  font-size: 1.2rem;
+  margin: 2.75rem 0 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--rule);
+  font-weight: 600;
+}
+
+h3 {
+  font-size: 1.05rem;
+  margin: 1.75rem 0 0.4rem;
+  font-weight: 600;
+}
+
+p { margin: 0.6rem 0; }
+
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+a:hover { border-bottom-color: var(--accent); }
+
+code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.88em;
+  background: #f3f1ea;
+  padding: 0.08em 0.32em;
+  border-radius: 3px;
+}
+
+ul, ol { padding-left: 1.4rem; margin: 0.5rem 0; }
+li { margin: 0.25rem 0; }
+
+/* ---------- Chrome ---------- */
+
+.kicker {
+  font-family: -apple-system, "Helvetica Neue", sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0;
+}
+
+.meta {
+  font-family: -apple-system, "Helvetica Neue", sans-serif;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  margin: 0.25rem 0 0;
+}
+
+.lens-label {
+  font-family: -apple-system, "Helvetica Neue", sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+footer {
+  margin-top: 3.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-family: -apple-system, "Helvetica Neue", sans-serif;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+}
+
+/* ---------- Option blocks ---------- */
+
+.option {
+  margin: 1.75rem 0;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.option h3 { margin-top: 0; }
+
+.option .pitch { font-style: italic; color: var(--ink-soft); }
+
+.option dl { margin: 0.5rem 0; }
+.option dt {
+  font-family: -apple-system, "Helvetica Neue", sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-top: 0.7rem;
+}
+.option dd { margin: 0.15rem 0 0; }
+
+.pros-cons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1.5rem;
+}
+.pros-cons ul { margin-top: 0.15rem; }
+
+.pick-if {
+  margin-top: 0.9rem;
+  padding: 0.55rem 0.85rem;
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+  font-size: 0.95rem;
+}
+
+/* ---------- Quiz ---------- */
+
+.quiz {
+  margin: 1.5rem 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.quiz-question { font-weight: 600; margin-top: 0; }
+
+.quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0.75rem 0;
+}
+
+.quiz-option {
+  font: inherit;
+  text-align: left;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.quiz-option:hover:not(:disabled) { border-color: var(--accent); }
+
+.quiz-option.is-correct {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.quiz-option.is-wrong {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  opacity: 0.75;
+}
+
+.quiz-option:disabled { cursor: default; }
+
+.quiz-feedback {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  margin-bottom: 0;
+}
+
+/* ---------- Reference tables ---------- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  margin: 0.9rem 0;
+}
+
+th, td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+
+th {
+  font-family: -apple-system, "Helvetica Neue", sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* ---------- Print ---------- */
+
+@media print {
+  body { background: #fff; max-width: none; }
+  .quiz-option:disabled { opacity: 1; }
+  .quiz-option[data-correct]::after {
+    content: "  ✓";
+    color: var(--accent);
+    font-weight: 600;
+  }
+  a { color: var(--ink); }
+}
