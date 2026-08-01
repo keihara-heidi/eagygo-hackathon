@@ -3,16 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Gift,
-  LogOut,
-  MessageSquare,
-  Radio,
-  Sparkles,
-  UserPlus,
-  Wrench,
-  Zap,
-} from "lucide-react";
+import { LogOut, MessageSquare, Wrench } from "lucide-react";
 
 import { ChatComposer } from "@/components/chat-composer";
 import { KickStreamConnector } from "@/components/kick-stream-connector";
@@ -31,6 +22,11 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
 import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
+import {
   useKickStreamEvents,
   type KickStreamConnectionState,
 } from "@/hooks/use-kick-stream-events";
@@ -43,116 +39,6 @@ interface ViewerChatProps {
   username?: string;
 }
 
-type KickActivityKind =
-  | "chat"
-  | "question"
-  | "follow"
-  | "sub"
-  | "gift"
-  | "sidekick"
-  | "system";
-
-interface KickActivity {
-  id: string;
-  kind: KickActivityKind;
-  label: string;
-  title: string;
-  detail: string;
-}
-
-function stripKickMarkup(content: string) {
-  return content.replace(/\[emote:[^:\]]+:([^\]]+)\]/g, ":$1:").trim();
-}
-
-function isQuestion(content: string) {
-  return /\?|^(what|whats|when|where|why|how|who|can|do|does|did|is|are|will|should)\b/i.test(
-    content.trim(),
-  );
-}
-
-function toKickActivity(wrapped: StampedEvent): KickActivity {
-  const id = String(wrapped.seq);
-  const { event } = wrapped;
-
-  switch (event.type) {
-    case "chat.message.sent": {
-      const content = stripKickMarkup(event.payload.content);
-      const fromSidekick = event.payload.sender.username === "Sidekick";
-      return {
-        id,
-        kind: fromSidekick ? "sidekick" : isQuestion(content) ? "question" : "chat",
-        label: fromSidekick ? "Sidekick" : isQuestion(content) ? "Question" : "Chat",
-        title: `@${event.payload.sender.username}`,
-        detail: content,
-      };
-    }
-    case "channel.followed":
-      return {
-        id,
-        kind: "follow",
-        label: "Follow",
-        title: `@${event.payload.follower.username}`,
-        detail: "joined the stream",
-      };
-    case "channel.subscription.new":
-    case "channel.subscription.renewal":
-      return {
-        id,
-        kind: "sub",
-        label: "Sub",
-        title: `@${event.payload.subscriber.username}`,
-        detail: `${event.payload.duration} month${event.payload.duration === 1 ? "" : "s"}`,
-      };
-    case "channel.subscription.gifts":
-      return {
-        id,
-        kind: "gift",
-        label: "Gift subs",
-        title: `@${event.payload.gifter.username}`,
-        detail: `${event.payload.giftees.length} gifted subs`,
-      };
-    case "kicks.gifted":
-      return {
-        id,
-        kind: "gift",
-        label: "Kicks",
-        title: `@${event.payload.sender.username}`,
-        detail: `${event.payload.gift.amount} kicks · ${event.payload.gift.message}`,
-      };
-    case "livestream.status.updated":
-      return {
-        id,
-        kind: "system",
-        label: "Stream",
-        title: event.payload.is_live ? "Went live" : "Ended",
-        detail: "KICK status update",
-      };
-    case "livestream.metadata.updated":
-      return {
-        id,
-        kind: "system",
-        label: "Stream",
-        title: "Title updated",
-        detail: event.payload.metadata.title,
-      };
-    case "moderation.banned":
-      return {
-        id,
-        kind: "system",
-        label: "Moderation",
-        title: `@${event.payload.banned_user.username}`,
-        detail: event.payload.metadata.reason,
-      };
-    case "channel.reward.redemption.updated":
-      return {
-        id,
-        kind: "gift",
-        label: "Reward",
-        title: `@${event.payload.redeemer.username}`,
-        detail: `${event.payload.reward.title}: ${event.payload.user_input}`,
-      };
-  }
-}
 
 function renderKickContent(content: string) {
   return content.split(/(\[emote:\d+:[^\]]+\])/g).map((part, index) => {
@@ -225,18 +111,16 @@ function LiveKickChat({
   return (
     <section
       aria-label={`Live KICK chat for ${streamer}`}
-      className="flex min-h-0 flex-col bg-[#0b0b0b] text-white"
+      className="flex size-full min-h-0 flex-col bg-[#0b0b0b] text-white"
     >
       <header className="flex h-12 shrink-0 items-center border-b border-neutral-800 px-4">
-        <span className="font-brand text-xl leading-none text-primary">KICK</span>
-        <span aria-hidden="true" className="mx-3 h-5 w-px bg-neutral-700" />
-        <h1 className="text-sm font-semibold">Chat</h1>
+        <h1 className="text-sm font-semibold">Live chat</h1>
         <span className="ml-auto flex items-center gap-2 text-xs text-neutral-400">
           <span
             aria-hidden="true"
             className={`size-2 rounded-full ${live ? "animate-pulse bg-primary" : "bg-neutral-600"}`}
           />
-          @{streamer}
+          {live ? "Live" : connectionState}
         </span>
       </header>
 
@@ -272,77 +156,6 @@ function LiveKickChat({
   );
 }
 
-function KickActivityIcon({ kind }: { kind: KickActivityKind }) {
-  const className = "size-3.5";
-  switch (kind) {
-    case "question":
-      return <Sparkles className={className} />;
-    case "follow":
-      return <UserPlus className={className} />;
-    case "sub":
-      return <Zap className={className} />;
-    case "gift":
-      return <Gift className={className} />;
-    case "sidekick":
-      return <Sparkles className={className} />;
-    case "system":
-      return <Radio className={className} />;
-    case "chat":
-      return <MessageSquare className={className} />;
-  }
-}
-
-function LiveKickActivityBar({
-  activities,
-  connectionState,
-  eventCount,
-}: {
-  activities: KickActivity[];
-  connectionState: KickStreamConnectionState;
-  eventCount: number;
-}) {
-  const live = connectionState === "live";
-
-  return (
-    <section className="shrink-0 border-b bg-card">
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-stretch overflow-hidden">
-        <div className="flex min-w-36 items-center gap-2 border-r px-4 sm:min-w-44 sm:px-6">
-          <span
-            aria-hidden="true"
-            className={`size-2 rounded-full ${live ? "animate-pulse bg-primary" : "bg-muted-foreground"}`}
-          />
-          <div className="min-w-0">
-            <p className="truncate text-xs font-semibold">Live context</p>
-            <p className="truncate text-[11px] text-muted-foreground">
-              {live ? `${eventCount} events` : connectionState}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex min-w-0 flex-1 divide-x divide-border overflow-x-auto">
-          {activities.length === 0 ? (
-            <p className="flex min-w-64 items-center px-4 text-xs text-muted-foreground">
-              Waiting for chat, follows, subs, and Kicks…
-            </p>
-          ) : (
-            activities.map((activity) => (
-              <article key={activity.id} className="min-w-56 px-4 py-2.5">
-                <div className="mb-0.5 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                  <span className="text-primary">
-                    <KickActivityIcon kind={activity.kind} />
-                  </span>
-                  {activity.label}
-                </div>
-                <p className="truncate text-xs font-semibold">{activity.title}</p>
-                <p className="truncate text-[11px] text-muted-foreground">{activity.detail}</p>
-              </article>
-            ))
-          )}
-        </div>
-      </div>
-    </section>
-  );
-}
 
 export function ViewerChat({ username }: ViewerChatProps) {
   const viewerName = username ?? "viewer";
@@ -373,10 +186,6 @@ export function ViewerChat({ username }: ViewerChatProps) {
           ),
     [broadcasterUserId, kickEvents],
   );
-  const kickActivities = useMemo(
-    () => visibleKickEvents.slice(-4).reverse().map(toKickActivity),
-    [visibleKickEvents],
-  );
 
   return (
     <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-background">
@@ -390,13 +199,6 @@ export function ViewerChat({ username }: ViewerChatProps) {
           <span className="hidden text-xs text-muted-foreground sm:inline">Viewer copilot</span>
 
           <div className="ml-auto flex items-center gap-2">
-            <div className="hidden items-center gap-2 text-xs text-muted-foreground md:flex">
-              <span
-                aria-hidden="true"
-                className={`size-1.5 rounded-full ${streamer ? "bg-primary" : "bg-muted-foreground"}`}
-              />
-              {streamer ? `Watching @${streamer}` : "KICK chat context"}
-            </div>
             <span className="max-w-28 truncate text-xs font-medium text-foreground/80">
               @{viewerName}
             </span>
@@ -417,19 +219,36 @@ export function ViewerChat({ username }: ViewerChatProps) {
         </div>
       </section>
 
-      <LiveKickActivityBar
-        activities={kickActivities}
-        connectionState={connectionState}
-        eventCount={visibleKickEvents.length}
-      />
 
-      <div className="grid min-h-0 flex-1 grid-rows-2">
-      <LiveKickChat
-        connectionState={connectionState}
-        events={visibleKickEvents}
-        streamer={streamer ?? "hanvee"}
-      />
-      <section className="flex min-h-0 flex-col overflow-hidden border-t border-primary/40">
+      <ResizablePanelGroup
+        className="min-h-0 flex-1"
+        id="chat-agent-split"
+        orientation="vertical"
+      >
+        <ResizablePanel
+          className="h-full min-h-0"
+          defaultSize="50%"
+          id="live-chat-panel"
+          minSize="20%"
+        >
+          <LiveKickChat
+            connectionState={connectionState}
+            events={visibleKickEvents}
+            streamer={streamer ?? "hanvee"}
+          />
+        </ResizablePanel>
+        <ResizableHandle
+          className="cursor-row-resize bg-primary/40 transition-colors hover:bg-primary/70 aria-[orientation=horizontal]:h-1"
+          id="chat-agent-divider"
+          withHandle
+        />
+        <ResizablePanel
+          className="h-full min-h-0"
+          defaultSize="50%"
+          id="sidekick-panel"
+          minSize="20%"
+        >
+          <section className="flex size-full min-h-0 flex-col overflow-hidden">
 
       <main className="min-h-0 flex-1" aria-label="Sidekick conversation">
         <MessageScrollerProvider>
@@ -552,8 +371,9 @@ export function ViewerChat({ username }: ViewerChatProps) {
           )}
         </div>
       </footer>
-      </section>
-      </div>
+          </section>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }
