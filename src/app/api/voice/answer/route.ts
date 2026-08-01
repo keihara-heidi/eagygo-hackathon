@@ -1,7 +1,6 @@
-import { generateText } from "ai";
 import { NextResponse } from "next/server";
 
-import { getFastSidekickAgent, getSpeechModel } from "@/lib/sidekick/agent";
+import { getFastSidekickAgent } from "@/lib/sidekick/agent";
 import { maskSpeech } from "@/lib/sidekick/clean-speech";
 import { postVoiceBriefing } from "@/lib/sidekick/voice-briefing";
 
@@ -10,33 +9,20 @@ import { POST as scriptedAsk } from "../../copilot/ask/route";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-function rephraseSystem(budget: { sentences: number; words: number }): string {
-  return [
-    "You compress a stream copilot's answer for text-to-speech.",
-    `Output ONLY the rewritten text: at most ${budget.sentences} short spoken sentences, under ${budget.words} words total.`,
-    "Keep the most important facts and numbers from the input.",
-    "Never add information that is not in the input. Never answer questions yourself.",
-    "Never speak as the streamer — you are the copilot reporting about chat.",
-    "No quotes, no preamble, no lists, no markdown, no emojis.",
-  ].join(" ");
-}
-
 /** Recaps carry more ground to cover, so they get a slightly longer spoken budget. */
 const RECAP_PATTERN = /recap|catch me up|catch up|what did i miss|missed/i;
 
-/** Skip the compression pass when the agent was already brief. */
-const REPHRASE_THRESHOLD_CHARS = 180;
-
-/** Strips preambles/quotes the rephrase model occasionally adds anyway. */
-function cleanRephrased(text: string, maxSentences: number): string {
-  let cleaned = text.trim();
-  cleaned = cleaned.replace(/^here'?s[^:\n]*:\s*/i, "");
-  cleaned = cleaned.replace(/^"([\s\S]*)"$/m, "$1");
-  const sentences = cleaned.match(/[^.!?]+[.!?]+/g);
-  if (sentences && sentences.length > maxSentences) {
-    cleaned = sentences.slice(0, maxSentences).join(" ");
-  }
-  return cleaned.trim();
+/** Deterministic safety cap; avoids paying for a second LLM rewrite. */
+function capSpokenAnswer(text: string, question: string): string {
+  const recap = RECAP_PATTERN.test(question);
+  const maxSentences = recap ? 3 : 2;
+  const maxWords = recap ? 70 : 45;
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  const sentences = cleaned.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [cleaned];
+  const answer = sentences.slice(0, maxSentences).join(" ").trim();
+  const words = answer.split(/\s+/);
+  if (words.length <= maxWords) return answer;
+  return `${words.slice(0, maxWords).join(" ").replace(/[,:;—-]+$/, "")}.`;
 }
 
 async function scriptedAnswer(question: string): Promise<string> {
@@ -52,10 +38,9 @@ async function scriptedAnswer(question: string): Promise<string> {
 }
 
 /**
- * One brain, two passes: Benjamin's tool-loop LLM agent produces a grounded
- * answer, then a compression pass rewrites it into 1-2 natural spoken
- * sentences for TTS. Falls back to the scripted brain (already concise) when
- * no LLM is configured or anything fails.
+ * Benjamin's tool-loop agent produces a concise, grounded spoken answer in one
+ * model pass. Falls back to the scripted brain when no LLM is configured or
+ * anything fails.
  */
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as { question?: unknown } | null;
@@ -77,27 +62,8 @@ export async function POST(request: Request) {
   if (agent) {
     try {
       const result = await agent.generate({ prompt: question });
-      answer = result.text.trim();
+      answer = capSpokenAnswer(result.text, question);
       source = "agent";
-
-      const model = getSpeechModel();
-      const budget = RECAP_PATTERN.test(question)
-        ? { sentences: 3, words: 70 }
-        : { sentences: 2, words: 45 };
-      if (model && answer.length > REPHRASE_THRESHOLD_CHARS) {
-        const compressed = await generateText({
-          model,
-          system: rephraseSystem(budget),
-          prompt: answer,
-          maxOutputTokens: 200,
-          temperature: 0.3,
-        });
-        const cleaned = cleanRephrased(compressed.text, budget.sentences + 1);
-        if (cleaned) {
-          answer = cleaned;
-          source = "agent+rephrase";
-        }
-      }
     } catch (error) {
       console.warn("[voice/answer] agent failed, using scripted brain:", error);
       answer = await scriptedAnswer(question);

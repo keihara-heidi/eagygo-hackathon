@@ -67,6 +67,10 @@ Style: plain text only, no markdown. 1-3 short sentences with chat-native energy
 
 Recaps: when asked to recap or catch up ("what did I miss?", "recap the stream", "catch me up", "recap the last N minutes"), always call get_stream_context + get_transcript + get_recent_questions. Answer in up to 4 short sentences: the scene (title, uptime), the top topics or moments from the transcript with @names, then how many questions are waiting for the streamer (or that the queue is clear).`;
 
+const VOICE_INSTRUCTIONS = `${INSTRUCTIONS}
+
+Voice mode: the streamer is waiting for a spoken answer. Return only the answer, with no reasoning or preamble. Use at most 2 short sentences and 45 words. For recaps only, use at most 3 short sentences and 70 words.`;
+
 const sidekickTools = {
   get_chat_vibe: tool({
     description:
@@ -172,10 +176,10 @@ const sidekickTools = {
   }),
 };
 
-function buildAgent(model: LanguageModel) {
+function buildAgent(model: LanguageModel, instructions = INSTRUCTIONS) {
   return new ToolLoopAgent({
     model,
-    instructions: INSTRUCTIONS,
+    instructions,
     tools: sidekickTools,
     stopWhen: isStepCount(6),
   });
@@ -204,7 +208,7 @@ export function getSidekickAgent(): SidekickAgent | null {
 export function getFastSidekickAgent(): SidekickAgent | null {
   if (cachedFastAgent === undefined) {
     const model = getSpeechModel();
-    cachedFastAgent = model ? buildAgent(model) : null;
+    cachedFastAgent = model ? buildAgent(model, VOICE_INSTRUCTIONS) : null;
   }
   return cachedFastAgent;
 }
