@@ -30,6 +30,39 @@ export function KickStreamConnector({ className }: KickStreamConnectorProps) {
     setError(null);
   }
 
+  if (stream) {
+    return (
+      <section className={cn("flex items-center gap-2", className)}>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <span aria-hidden="true" className="size-2 rounded-full bg-primary" />
+          <PlugZap className="size-4 shrink-0 text-primary" />
+          <p className="min-w-0 truncate text-xs font-semibold">
+            Connected to @{stream.slug}
+          </p>
+        </div>
+        <a
+          aria-label={`Open @${stream.slug} on KICK`}
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-primary"
+          href={stream.url}
+          rel="noreferrer"
+          target="_blank"
+        >
+          <ExternalLink className="size-3.5" />
+        </a>
+        <Button
+          aria-label="Disconnect stream"
+          className="shrink-0"
+          onClick={clearConnection}
+          size="icon-sm"
+          type="button"
+          variant="ghost"
+        >
+          <X className="size-4" />
+        </Button>
+      </section>
+    );
+  }
+
   return (
     <section className={cn("flex flex-col gap-2", className)}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -55,18 +88,6 @@ export function KickStreamConnector({ className }: KickStreamConnectorProps) {
           <Button className="h-8 shrink-0" type="submit">
             Connect
           </Button>
-          {stream ? (
-            <Button
-              aria-label="Disconnect stream"
-              className="size-8 shrink-0"
-              onClick={clearConnection}
-              size="icon"
-              type="button"
-              variant="ghost"
-            >
-              <X className="size-4" />
-            </Button>
-          ) : null}
         </form>
       </div>
 
@@ -75,16 +96,6 @@ export function KickStreamConnector({ className }: KickStreamConnectorProps) {
           <p className="text-destructive" role="alert">
             {error}
           </p>
-        ) : stream ? (
-          <a
-            className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"
-            href={stream.url}
-            rel="noreferrer"
-            target="_blank"
-          >
-            Connected to @{stream.slug}
-            <ExternalLink className="size-3" />
-          </a>
         ) : (
           <p className="text-muted-foreground">
             Demo stream stays mocked until the webhook receiver is wired.
