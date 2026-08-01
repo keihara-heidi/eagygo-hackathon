@@ -1,3 +1,10 @@
+import {
+  TypographyH1,
+  TypographyLead,
+  TypographyMuted,
+  TypographySmall,
+} from "@/components/ui/typography";
+
 const stack = [
   "Next.js",
   "Jotai",
@@ -21,23 +28,23 @@ export default function Home() {
         </header>
 
         <div className="max-w-4xl">
-          <p className="mb-5 text-sm font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+          <TypographySmall className="mb-5 block font-semibold uppercase tracking-[0.22em] text-muted-foreground">
             From chat to signal
-          </p>
-          <h1 className="text-5xl leading-[0.9] font-bold uppercase sm:text-7xl lg:text-8xl">
+          </TypographySmall>
+          <TypographyH1 className="text-5xl leading-[0.9] font-bold uppercase sm:text-7xl lg:text-8xl">
             Chat insights
             <span className="block text-primary">&amp; engagement</span>
-          </h1>
-          <p className="mt-8 max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl">
+          </TypographyH1>
+          <TypographyLead className="mt-8 max-w-2xl text-lg leading-8 sm:text-xl">
             Turn live chat into useful insight for streamers and meaningful
             participation for viewers.
-          </p>
+          </TypographyLead>
         </div>
 
         <footer>
-          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          <TypographyMuted className="mb-4 text-xs font-semibold uppercase tracking-[0.2em]">
             Stack ready
-          </p>
+          </TypographyMuted>
           <ul className="flex flex-wrap gap-2">
             {stack.map((item) => (
               <li

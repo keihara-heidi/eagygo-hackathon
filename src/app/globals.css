@@ -102,10 +102,4 @@
   body {
     @apply bg-background text-foreground;
   }
-
-  h1,
-  h2,
-  h3 {
-    font-family: var(--font-booster);
-  }
 }
