@@ -1,20 +1,16 @@
 "use client";
 
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bot,
   Check,
-  Gift,
   MessageSquare,
   Radio,
   Send,
   Sparkles,
-  TrendingUp,
-  UserPlus,
   Users,
   Wrench,
-  Zap,
 } from "lucide-react";
 
 import { KickStreamConnector } from "@/components/kick-stream-connector";
@@ -35,12 +31,8 @@ import { useSidekickAgentChat } from "@/hooks/use-sidekick-agent-chat";
 import { apiClient } from "@/lib/api-client";
 import type { StampedEvent } from "@/lib/chat-engine/types";
 import type {
-  ChattersResult,
   QuestionCluster,
   StreamContext,
-  TrendingResult,
-  Vibe,
-  VibeResult,
 } from "@/lib/sidekick/insights";
 
 type QuestionsResponse = { questions: QuestionCluster[] };
@@ -66,21 +58,6 @@ function formatTime(timestamp: string) {
     minute: "2-digit",
     second: "2-digit",
   }).format(new Date(timestamp));
-}
-
-function displayVibe(vibe?: Vibe) {
-  const labels: Record<Vibe, string> = {
-    hype: "Hype spike",
-    chill: "Chill",
-    tilted: "Tilted",
-    dead: "Quiet",
-  };
-  return vibe ? labels[vibe] : "Loading";
-}
-
-function formatDelta(delta: number | null) {
-  if (delta === null) return "new";
-  return `${delta > 0 ? "+" : ""}${delta}%`;
 }
 
 function toChatLine(wrapped: StampedEvent): ChatLine {
@@ -190,24 +167,9 @@ export default function StreamDashboardPage() {
   } = useSidekickAgentChat();
   const [agentQuestion, setAgentQuestion] = useState("");
 
-  const vibeQuery = useQuery({
-    queryKey: ["insights", "vibe"],
-    queryFn: () => getInsight<VibeResult>("/insights/vibe"),
-    refetchInterval: INSIGHT_REFETCH_MS,
-  });
   const questionsQuery = useQuery({
     queryKey: ["insights", "questions"],
     queryFn: () => getInsight<QuestionsResponse>("/insights/questions"),
-    refetchInterval: INSIGHT_REFETCH_MS,
-  });
-  const trendingQuery = useQuery({
-    queryKey: ["insights", "trending"],
-    queryFn: () => getInsight<TrendingResult>("/insights/trending"),
-    refetchInterval: INSIGHT_REFETCH_MS,
-  });
-  const chattersQuery = useQuery({
-    queryKey: ["insights", "chatters"],
-    queryFn: () => getInsight<ChattersResult>("/insights/chatters"),
     refetchInterval: INSIGHT_REFETCH_MS,
   });
   const contextQuery = useQuery({
@@ -226,12 +188,6 @@ export default function StreamDashboardPage() {
   });
 
   const questions = questionsQuery.data?.questions ?? [];
-  const openQuestions = questions.filter((question) => !question.answered);
-  const answeredQuestions = questions.filter((question) => question.answered);
-  const topQuestion = openQuestions[0];
-  const vibe = vibeQuery.data;
-  const trending = trendingQuery.data;
-  const chatters = chattersQuery.data;
   const streamContext = contextQuery.data;
   const streamer = connectedStream?.slug ?? streamContext?.streamer ?? "streamer";
 
@@ -294,12 +250,12 @@ export default function StreamDashboardPage() {
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <Sparkles className="size-4 text-primary" />
-                    Stream insights
+                    Question clusters
                   </CardTitle>
                   <CardDescription>
                     {streamContext
                       ? `${streamContext.title} · ${streamContext.viewer_count.toLocaleString()} viewers · ${streamContext.uptime_minutes}m live`
-                      : "Reading live chat context…"}
+                      : "Repeated asks from the insight engine."}
                   </CardDescription>
                 </div>
                 <CardAction className="hidden items-center gap-1 sm:flex">
@@ -314,175 +270,50 @@ export default function StreamDashboardPage() {
                   </Button>
                 </CardAction>
               </CardHeader>
-              <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem]">
-                <div className="min-w-0 rounded-lg border bg-background p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-                    Priority signal
-                  </p>
-                  {topQuestion ? (
-                    <div className="mt-3 space-y-3">
-                      <div>
-                        <h1 className="text-2xl font-semibold tracking-tight">
-                          {topQuestion.count}x repeated question
-                        </h1>
-                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                          “{stripKickMarkup(topQuestion.representative)}”
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {topQuestion.askers.slice(0, 4).map((asker) => (
-                          <Badge key={asker} variant="outline">
-                            @{asker}
+              <CardContent>
+                {questions.length ? (
+                  <ol className="grid gap-3 md:grid-cols-2">
+                    {questions.slice(0, 8).map((question) => (
+                      <li key={question.id} className="rounded-lg border bg-background p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant={question.answered ? "secondary" : "default"}>
+                            {question.count}x
                           </Badge>
-                        ))}
-                      </div>
-                      <Button
-                        disabled={answerMutation.isPending}
-                        onClick={() => answerMutation.mutate(topQuestion.id)}
-                        size="sm"
-                      >
-                        <Check className="size-3.5" />
-                        Mark answered
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="mt-3">
-                      <h1 className="text-2xl font-semibold tracking-tight">
-                        {displayVibe(vibe?.vibe)}
-                      </h1>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        {vibe?.description ?? "Waiting for enough chat activity to classify the stream."}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
-                  <InsightMetric
-                    label="Chat speed"
-                    value={`${vibe?.messages_per_minute ?? 0}/min`}
-                    detail={`baseline ${vibe?.baseline_per_minute ?? 0}/min`}
-                  />
-                  <InsightMetric
-                    label="Emote ratio"
-                    value={`${Math.round((vibe?.emote_ratio ?? 0) * 100)}%`}
-                    detail="last minute"
-                  />
-                </div>
+                          {question.digested ? <Badge variant="outline">digested</Badge> : null}
+                          {question.answered ? <Badge variant="outline">answered</Badge> : null}
+                        </div>
+                        <p className="mt-3 line-clamp-2 text-sm font-medium leading-6">
+                          “{stripKickMarkup(question.representative)}”
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {question.askers.slice(0, 3).map((asker) => (
+                            <Badge key={asker} variant="outline">
+                              @{asker}
+                            </Badge>
+                          ))}
+                        </div>
+                        {!question.answered ? (
+                          <Button
+                            className="mt-3"
+                            disabled={answerMutation.isPending}
+                            onClick={() => answerMutation.mutate(question.id)}
+                            size="sm"
+                          >
+                            <Check className="size-3.5" />
+                            Mark answered
+                          </Button>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <div className="flex min-h-64 flex-col items-center justify-center gap-3 text-center text-muted-foreground">
+                    <MessageSquare className="size-8" />
+                    <p>No repeated questions yet.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
-
-            <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <InsightMetric
-                icon={<Zap className="size-4" />}
-                label="Vibe"
-                value={displayVibe(vibe?.vibe)}
-                detail="engine classifier"
-              />
-              <InsightMetric
-                icon={<MessageSquare className="size-4" />}
-                label="Open questions"
-                value={String(openQuestions.length)}
-                detail={`${answeredQuestions.length} answered`}
-              />
-              <InsightMetric
-                icon={<Users className="size-4" />}
-                label="Active chatters"
-                value={String(chatters?.active_last_10m ?? 0)}
-                detail="last 10 min"
-              />
-              <InsightMetric
-                icon={<UserPlus className="size-4" />}
-                label="New follows"
-                value={`+${chatters?.recent_followers.length ?? 0}`}
-                detail="welcome on lull"
-              />
-            </section>
-
-            <section className="grid gap-4 lg:grid-cols-3">
-              <Card size="sm" className="lg:col-span-1">
-                <CardHeader>
-                  <CardTitle>Question clusters</CardTitle>
-                  <CardDescription>Repeated asks from the engine.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {questions.length ? (
-                    <ol className="space-y-2">
-                      {questions.slice(0, 4).map((question) => (
-                        <li key={question.id} className="rounded-lg border bg-background p-3">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={question.answered ? "secondary" : "default"}>
-                              {question.count}x
-                            </Badge>
-                            {question.digested ? <Badge variant="outline">digested</Badge> : null}
-                            {question.answered ? <Badge variant="outline">answered</Badge> : null}
-                          </div>
-                          <p className="mt-2 line-clamp-2 text-sm font-medium">
-                            {stripKickMarkup(question.representative)}
-                          </p>
-                        </li>
-                      ))}
-                    </ol>
-                  ) : (
-                    <EmptyState text="No repeated questions yet." />
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card size="sm" className="lg:col-span-1">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="size-4 text-primary" />
-                    Trending
-                  </CardTitle>
-                  <CardDescription>Words and emotes moving now.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    {(trending?.words.length ? trending.words : []).slice(0, 8).map((word) => (
-                      <Badge key={word.word} variant="outline">
-                        {word.word} · {word.count} · {formatDelta(word.delta_pct)}
-                      </Badge>
-                    ))}
-                    {!trending?.words.length ? <EmptyState text="No word trend yet." /> : null}
-                  </div>
-                  {trending?.emotes.length ? (
-                    <div className="border-t pt-3">
-                      <p className="mb-2 text-xs font-semibold text-muted-foreground">Emotes</p>
-                      <div className="flex flex-wrap gap-2">
-                        {trending.emotes.map((emote) => (
-                          <Badge key={emote.emote_id} variant="secondary">
-                            {emote.name} × {emote.count}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </CardContent>
-              </Card>
-
-              <Card size="sm" className="lg:col-span-1">
-                <CardHeader>
-                  <CardTitle>Community</CardTitle>
-                  <CardDescription>People worth noticing.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <InsightList
-                    icon={<UserPlus className="size-3.5" />}
-                    label="First timers"
-                    values={chatters?.first_timers ?? []}
-                    empty="No new chatters yet."
-                  />
-                  <InsightList
-                    icon={<Gift className="size-3.5" />}
-                    label="Notable"
-                    values={chatters?.notable ?? []}
-                    empty="No subs or gifts in the last 10 min."
-                    prefixAt={false}
-                  />
-                </CardContent>
-              </Card>
-            </section>
           </section>
 
           <aside className="min-h-0 space-y-4">
@@ -590,63 +421,3 @@ export default function StreamDashboardPage() {
   );
 }
 
-function InsightMetric({
-  label,
-  value,
-  detail,
-  icon,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-  icon?: ReactNode;
-}) {
-  return (
-    <div className="rounded-lg border bg-card p-3">
-      <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        {icon ? <span className="text-primary">{icon}</span> : null}
-        {label}
-      </div>
-      <div className="mt-2 truncate text-2xl font-semibold text-primary">{value}</div>
-      <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
-    </div>
-  );
-}
-
-function InsightList({
-  label,
-  values,
-  empty,
-  icon,
-  prefixAt = true,
-}: {
-  label: string;
-  values: string[];
-  empty: string;
-  icon: ReactNode;
-  prefixAt?: boolean;
-}) {
-  return (
-    <div>
-      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        <span className="text-primary">{icon}</span>
-        {label}
-      </p>
-      {values.length ? (
-        <div className="flex flex-wrap gap-2">
-          {values.slice(0, 5).map((value) => (
-            <Badge key={value} variant="outline">
-              {prefixAt && !value.startsWith("@") ? `@${value}` : value}
-            </Badge>
-          ))}
-        </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">{empty}</p>
-      )}
-    </div>
-  );
-}
-
-function EmptyState({ text }: { text: string }) {
-  return <p className="text-sm text-muted-foreground">{text}</p>;
-}
