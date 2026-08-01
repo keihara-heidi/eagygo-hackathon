@@ -27,11 +27,11 @@ function makeUser(id: number, username: string, badges: KickBadge[] = []): KickU
 function chatDelivery(
   sender: KickUser,
   content: string,
-  options: { msAgo?: number; emotes?: KickEmote[] } = {},
+  options: { msAgo?: number; emotes?: KickEmote[]; broadcaster?: KickUser } = {},
 ): WebhookDelivery {
   const body: ChatMessageEvent = {
     message_id: crypto.randomUUID(),
-    broadcaster: STREAMER,
+    broadcaster: options.broadcaster ?? STREAMER,
     sender,
     content,
     emotes: options.emotes ?? [],
@@ -248,5 +248,74 @@ describe("stream context", () => {
     expect(context.title.length).toBeGreaterThan(0);
     expect(context.uptime_minutes).toBeGreaterThanOrEqual(84);
     expect(context.viewer_count).toBeGreaterThan(0);
+  });
+});
+
+describe("live channel context", () => {
+  it("flips to the observed broadcaster, resets windows on switch, and flips back", () => {
+    const { engine, insights } = rig();
+    engine.publish(chatDelivery(makeUser(701, "asker_a"), "what's your sens?"));
+    engine.publish(chatDelivery(makeUser(702, "asker_b"), "whats ur dpi and sens"));
+    expect(insights.context().streamer).toBe(STREAMER.username);
+    expect(insights.questions().length).toBeGreaterThan(0);
+
+    const kanel = makeUser(1_849_0228, "kaneljoseph");
+    engine.publish(chatDelivery(makeUser(703, "viewer_a"), "LETS GOOO", { broadcaster: kanel }));
+    engine.publish(
+      chatDelivery(makeUser(704, "viewer_b"), "who is playing right now?", {
+        broadcaster: kanel,
+      }),
+    );
+
+    const liveContext = insights.context();
+    expect(liveContext.streamer).toBe("kaneljoseph");
+    expect(liveContext.title).toBe("Live on KICK");
+    // Mock-era clusters and trends are gone — nothing bleeds across.
+    expect(insights.questions()).toHaveLength(0);
+    expect(insights.trending().words.map((entry) => entry.word)).not.toContain("sens");
+
+    engine.publish(chatDelivery(makeUser(705, "home_again"), "we back?"));
+    expect(insights.context().streamer).toBe(STREAMER.username);
+  });
+
+  it("!answered <words> stores the spoken answer as the recall payload", () => {
+    const { engine, insights } = rig();
+    const kanel = makeUser(1_849_0228, "kaneljoseph");
+    engine.publish(
+      chatDelivery(makeUser(801, "q1"), "what is the match score?", { broadcaster: kanel }),
+    );
+    engine.publish(
+      chatDelivery(makeUser(802, "q2"), "what is the score right now?", { broadcaster: kanel }),
+    );
+    engine.publish(
+      chatDelivery(makeUser(803, "q3"), "score update please?", { broadcaster: kanel }),
+    );
+
+    // The channel owner (sender == broadcaster) resolves with the real answer.
+    engine.publish(chatDelivery(kanel, "!answered 6-4, 3-2", { broadcaster: kanel }));
+
+    const answered = insights.questions().find((cluster) => cluster.answered);
+    expect(answered?.answer).toBe("6-4, 3-2");
+    expect(insights.findAnswered("what is the score?")?.answer).toBe("6-4, 3-2");
+  });
+
+  it("live mode never recalls the cast's fabricated topic answers", () => {
+    const { engine, insights } = rig();
+    const kanel = makeUser(1_849_0228, "kaneljoseph");
+    engine.publish(
+      chatDelivery(makeUser(901, "q1"), "what's your sens?", { broadcaster: kanel }),
+    );
+    engine.publish(
+      chatDelivery(makeUser(902, "q2"), "whats ur dpi and sens", { broadcaster: kanel }),
+    );
+    engine.publish(
+      chatDelivery(makeUser(903, "q3"), "sensitivity settings?", { broadcaster: kanel }),
+    );
+    const mod = makeUser(904, "real_mod", [{ text: "Moderator", type: "moderator" }]);
+    engine.publish(chatDelivery(mod, "!answered", { broadcaster: kanel }));
+
+    const answered = insights.questions().find((cluster) => cluster.answered);
+    expect(answered?.answer).not.toContain("DPI");
+    expect(answered?.answer).toContain("covered this on stream");
   });
 });

@@ -185,17 +185,22 @@ export class InsightEngine {
     if (payload.sender.user_id === SIDEKICK_BOT.user_id) return;
 
     // Real chat carries the real channel in the broadcaster field; the mock
-    // cast always broadcasts as STREAMER. First non-mock broadcaster flips
-    // the stream context from persona to observed reality.
+    // cast always broadcasts as STREAMER. Switching channels (or back to the
+    // mock) resets every window so stale clusters and trends never bleed
+    // across contexts.
     const broadcasterSlug = payload.broadcaster.channel_slug;
-    if (broadcasterSlug !== STREAMER.channel_slug) {
-      if (!this.liveBroadcaster || this.liveBroadcaster.slug !== broadcasterSlug) {
-        this.liveBroadcaster = {
-          username: payload.broadcaster.username,
-          slug: broadcasterSlug,
-          firstSeenAt: Date.now(),
-        };
+    if (broadcasterSlug === STREAMER.channel_slug) {
+      if (this.liveBroadcaster) {
+        this.liveBroadcaster = null;
+        this.resetWindows();
       }
+    } else if (this.liveBroadcaster?.slug !== broadcasterSlug) {
+      this.liveBroadcaster = {
+        username: payload.broadcaster.username,
+        slug: broadcasterSlug,
+        firstSeenAt: Date.now(),
+      };
+      this.resetWindows();
     }
 
     const badges = payload.sender.identity?.badges ?? [];
@@ -242,17 +247,38 @@ export class InsightEngine {
     if (isQuestion) this.assignToCluster(payload);
   }
 
-  /** `!answered` from a mod or the streamer resolves the hottest digested cluster. */
+  /** Drops all rolling state — called on channel transitions only. */
+  private resetWindows() {
+    this.messages.length = 0;
+    this.clusters.clear();
+    this.firstSeen.clear();
+    this.senderMeta.clear();
+    this.followers.length = 0;
+    this.notable.length = 0;
+  }
+
+  /** `!answered [answer]` — resolves the hottest open cluster; the spoken text becomes the recall payload. */
   private handleCommand(payload: ChatMessageEvent, isMod: boolean): boolean {
-    const text = payload.content.trim().toLowerCase();
-    if (!text.startsWith("!answered")) return false;
-    const canResolve = isMod || payload.sender.user_id === STREAMER.user_id;
+    const text = payload.content.trim();
+    if (!text.toLowerCase().startsWith("!answered")) return false;
+    // Mods, the mock streamer (demo), or the live channel's owner — the last
+    // is derivable from real payloads, so real streamers can resolve too.
+    const canResolve =
+      isMod ||
+      payload.sender.user_id === STREAMER.user_id ||
+      payload.sender.user_id === payload.broadcaster.user_id;
     if (!canResolve) return true;
+
+    const spokenAnswer = text
+      .slice("!answered".length)
+      .trim()
+      .replace(/^[:;-]\s*/, "");
 
     const target = [...this.clusters.values()]
       .filter((cluster) => !cluster.answered)
       .sort((a, b) => Number(b.digested) - Number(a.digested) || b.count - a.count)[0];
-    if (target) this.markAnswered(target.id);
+    if (target)
+      this.markAnswered(target.id, spokenAnswer.length > 0 ? spokenAnswer : undefined);
     return true;
   }
 
@@ -307,16 +333,21 @@ export class InsightEngine {
     );
   }
 
-  markAnswered(clusterId: string): QuestionCluster | null {
+  markAnswered(clusterId: string, answer?: string): QuestionCluster | null {
     const cluster = this.clusters.get(clusterId);
     if (!cluster) return null;
     cluster.answered = true;
     cluster.answered_at = new Date().toISOString();
-    cluster.answer = this.answerFor(cluster);
+    cluster.answer = answer ?? this.answerFor(cluster);
     return cluster;
   }
 
   private answerFor(cluster: InternalCluster): string {
+    // Cast topic answers belong to the mock persona — over a real channel
+    // they would fabricate facts about a streamer we've never profiled.
+    if (this.liveBroadcaster) {
+      return "The streamer covered this on stream a moment ago.";
+    }
     for (const topic of QUESTION_TOPICS) {
       const topicTokens = questionTokens(topic.phrasings.join(" "));
       if (overlap(cluster.tokens, topicTokens) >= 0.3) return topic.answer;
