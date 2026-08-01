@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 
+import { KickChatContent, kickContentToPlainText } from "@/components/kick-chat-content";
 import { KickStreamConnector } from "@/components/kick-stream-connector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import { useConnectedKickStream } from "@/hooks/use-connected-kick-stream";
 import { useKickStreamEvents } from "@/hooks/use-kick-stream-events";
 import { apiClient } from "@/lib/api-client";
 import type { StampedEvent } from "@/lib/chat-engine/types";
+import type { KickEmote } from "@/lib/kick/types";
 import type { QuestionCluster } from "@/lib/sidekick/insights";
 
 type QuestionsResponse = { questions: QuestionCluster[] };
@@ -53,30 +55,10 @@ type ChatLine = {
   timestamp: string;
   tone: "message" | "system" | "sidekick";
   color?: string;
+  emotes?: KickEmote[];
 };
 
 const INSIGHT_REFETCH_MS = 2_000;
-
-function stripKickMarkup(content: string) {
-  return content.replace(/\[emote:[^:\]]+:([^\]]+)\]/g, ":$1:").trim();
-}
-
-function renderKickContent(content: string) {
-  return content.split(/(\[emote:\d+:[^\]]+\])/g).map((part, index) => {
-    const match = /^\[emote:(\d+):([^\]]+)\]$/.exec(part);
-    if (!match) return <span key={index}>{part}</span>;
-
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        key={index}
-        alt={match[2]}
-        className="mx-0.5 inline-block h-6 max-w-16 object-contain align-middle"
-        src={`https://files.kick.com/emotes/${match[1]}/fullsize`}
-      />
-    );
-  });
-}
 
 function formatTime(timestamp: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -99,6 +81,7 @@ function toChatLine(wrapped: StampedEvent): ChatLine {
         timestamp: event.payload.created_at,
         tone: event.payload.sender.username === "Sidekick" ? "sidekick" : "message",
         color: event.payload.sender.identity?.username_color,
+        emotes: event.payload.emotes,
       };
     case "channel.followed":
       return {
@@ -311,7 +294,7 @@ export default function StreamDashboardPage() {
                           {question.answered ? <Badge variant="outline">answered</Badge> : null}
                         </div>
                         <p className="mt-3 line-clamp-2 break-words text-sm font-medium leading-6">
-                          “{stripKickMarkup(question.representative)}”
+                          “{kickContentToPlainText(question.representative)}”
                         </p>
                         <div className="mt-3 flex flex-wrap gap-1.5">
                           {question.askers.slice(0, 3).map((asker) => (
@@ -376,7 +359,11 @@ export default function StreamDashboardPage() {
                             </span>
                           </div>
                           <p className={line.tone === "system" ? "text-muted-foreground" : "text-foreground"}>
-                            {renderKickContent(line.content)}
+                            <KickChatContent
+                              content={line.content}
+                              emotes={line.emotes}
+                              imageClassName="h-6 max-w-16"
+                            />
                           </p>
                         </li>
                       ))}
