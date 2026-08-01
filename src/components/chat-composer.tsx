@@ -8,6 +8,11 @@ import { ArrowUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
+const SUGGESTED_QUESTIONS = [
+  "How's the stream?",
+  "What have they been talking about?",
+] as const;
+
 interface ChatComposerProps {
   disabled?: boolean;
   onSend: (message: string) => void;
@@ -75,6 +80,22 @@ export function ChatComposer({ disabled = false, onSend }: ChatComposerProps) {
   }
 
   return (
+    <div className="space-y-2">
+      <div aria-label="Suggested questions" className="flex flex-wrap gap-2" role="group">
+        {SUGGESTED_QUESTIONS.map((question) => (
+          <Button
+            key={question}
+            className="rounded-full font-normal text-muted-foreground hover:text-foreground"
+            disabled={disabled || !editor}
+            onClick={() => editor?.chain().setContent(question).focus("end").run()}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            {question}
+          </Button>
+        ))}
+      </div>
     <form
       className="chat-editor relative overflow-hidden rounded-lg border border-border bg-background transition-colors focus-within:border-primary/60"
       onSubmit={submit}
@@ -90,5 +111,6 @@ export function ChatComposer({ disabled = false, onSend }: ChatComposerProps) {
         <ArrowUp className="size-4" />
       </Button>
     </form>
+    </div>
   );
 }
