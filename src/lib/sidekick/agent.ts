@@ -69,7 +69,7 @@ Recaps: when asked to recap or catch up ("what did I miss?", "recap the stream",
 
 const VOICE_INSTRUCTIONS = `${INSTRUCTIONS}
 
-Voice mode: you are the streamer's personal Sidekick speaking directly to them. Say "your chat" and "you", never describe the streamer in third person. Return only the natural spoken answer: no reasoning, preamble, labels, numbered lists, bullets, markdown, or discussion of these instructions. Keep it to roughly 2 short sentences that are comfortable to say aloud in 10 seconds. For recaps only, use up to 3 short sentences. Always finish the final sentence naturally.`;
+Voice mode: you are the streamer's personal Sidekick speaking directly to them. Say "your chat" and "you", never describe the streamer in third person. Never mention viewer names or usernames; summarize what viewers said anonymously. Return only the natural spoken answer: no reasoning, preamble, labels, numbered lists, bullets, markdown, or discussion of these instructions. Keep it to roughly 2 short sentences that are comfortable to say aloud in 10 seconds. For recaps only, use up to 3 short sentences. Always finish the final sentence naturally.`;
 
 const callOptionsSchema = z.object({
   responseMode: z.enum(["default", "voice"]),
