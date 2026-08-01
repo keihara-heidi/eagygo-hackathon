@@ -152,7 +152,7 @@ export interface WebhookDelivery {
   body: unknown;
 }
 
-const KICK_EVENT_TYPES = [
+export const KICK_EVENT_TYPES = [
   "chat.message.sent",
   "channel.followed",
   "channel.subscription.new",
