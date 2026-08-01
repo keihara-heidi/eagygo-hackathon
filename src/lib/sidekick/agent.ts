@@ -186,3 +186,9 @@ export function getSidekickAgent(): SidekickAgent | null {
   }
   return cachedAgent;
 }
+
+/** The raw model (same provider resolution), for auxiliary single-shot calls
+ * like the voice pipeline's speech-compression pass. */
+export function getSidekickModel(): LanguageModel | null {
+  return resolveModel();
+}

@@ -1,12 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ConversationProvider,
-  useConversationControls,
-  useConversationStatus,
-  useConversationMode,
-} from "@elevenlabs/react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Eye,
   Flame,
@@ -23,16 +17,41 @@ import { cn } from "@/lib/utils";
 import { useRealKickChat } from "./use-real-kick-chat";
 import { useVoiceChatFeed, VoiceChatOverlay } from "./voice-chat-column";
 
-const AGENT_ID = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
-
 const AVATAR = `https://api.dicebear.com/9.x/thumbs/svg?seed=${VOICE_PRESET.streamer}`;
 
 // ---------------------------------------------------------------------------
-// Voice session: ElevenLabs agent (LLM phrasing inside our guardrail prompt,
-// grounded by client tools that call the shared insight API)
+// Minimal Web Speech API typings (Chrome's webkit-prefixed implementation)
 // ---------------------------------------------------------------------------
 
-type Phase = "idle" | "listening" | "speaking";
+interface SpeechRecognitionLike {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: (() => void) | null;
+}
+
+interface SpeechRecognitionEventLike {
+  results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }>;
+}
+
+function createRecognition(): SpeechRecognitionLike | null {
+  const w = window as typeof window & {
+    SpeechRecognition?: new () => SpeechRecognitionLike;
+    webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+  };
+  const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+  return Ctor ? new Ctor() : null;
+}
+
+// ---------------------------------------------------------------------------
+// One-brain voice pipeline: hold key → STT → /copilot/ask → TTS → audio out
+// ---------------------------------------------------------------------------
+
+type Phase = "idle" | "listening" | "thinking" | "speaking";
 
 /** Fn is invisible to browsers on macOS, so left Control (the key directly
  * above Fn) is the practical bind; "Fn" is honored if ever reported. */
@@ -40,16 +59,24 @@ function isPttKey(event: KeyboardEvent): boolean {
   return event.code === "ControlLeft" || event.key === "Fn";
 }
 
-function useVoiceSession(hadAnswer: boolean) {
-  const { startSession, endSession } = useConversationControls();
-  const { status } = useConversationStatus();
-  const { isSpeaking } = useConversationMode();
-  const [held, setHeld] = useState(false);
+function useVoicePipeline() {
+  const [phase, setPhase] = useState<Phase>("idle");
   const [haptic, setHaptic] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const transcriptRef = useRef("");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const heldRef = useRef(false);
 
-  const connected = status === "connected";
-  const phase: Phase =
-    !connected && !held ? "idle" : isSpeaking ? "speaking" : "listening";
+  const reset = useCallback(() => {
+    recognitionRef.current?.abort();
+    recognitionRef.current = null;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    transcriptRef.current = "";
+    setPhase("idle");
+  }, []);
 
   const pulseHaptic = () => {
     setHaptic(true);
@@ -59,28 +86,93 @@ function useVoiceSession(hadAnswer: boolean) {
     setTimeout(() => setHaptic(false), 320);
   };
 
+  const beginListening = useCallback(() => {
+    const recognition = createRecognition();
+    if (!recognition) {
+      console.warn("SpeechRecognition unavailable in this browser");
+      return;
+    }
+    transcriptRef.current = "";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+    recognition.onresult = (event) => {
+      let text = "";
+      for (let i = 0; i < event.results.length; i += 1) {
+        const result = event.results[i];
+        if (result) text += result[0].transcript;
+      }
+      transcriptRef.current = text;
+    };
+    recognition.onerror = () => {};
+    recognition.start();
+    recognitionRef.current = recognition;
+    setPhase("listening");
+  }, []);
+
+  const submit = useCallback(async () => {
+    recognitionRef.current?.stop();
+    // Give the recognizer a beat to flush its final result.
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    recognitionRef.current = null;
+
+    const question = transcriptRef.current.trim();
+    transcriptRef.current = "";
+    if (!question) {
+      setPhase("idle");
+      return;
+    }
+
+    setPhase("thinking");
+    try {
+      const { data } = await apiClient.post<{ answer: string }>("/voice/answer", {
+        question,
+      });
+
+      const ttsResponse = await fetch("/api/voice/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: data.answer }),
+      });
+      if (!ttsResponse.ok) throw new Error(`TTS ${ttsResponse.status}`);
+      const blob = await ttsResponse.blob();
+
+      const audio = new Audio(URL.createObjectURL(blob));
+      audioRef.current = audio;
+      audio.onended = () => {
+        URL.revokeObjectURL(audio.src);
+        audioRef.current = null;
+        setPhase("idle");
+      };
+      setPhase("speaking");
+      await audio.play();
+    } catch (error) {
+      console.warn("voice pipeline failed:", error);
+      setPhase("idle");
+    }
+  }, []);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        void endSession();
-        setHeld(false);
+        reset();
         return;
       }
-      if (!isPttKey(event) || event.repeat) return;
+      if (!isPttKey(event) || event.repeat || heldRef.current) return;
       event.preventDefault();
-      setHeld(true);
+      heldRef.current = true;
       pulseHaptic();
-      if (!connected) {
-        if (!AGENT_ID) {
-          console.warn("NEXT_PUBLIC_ELEVENLABS_AGENT_ID is not set");
-          return;
-        }
-        void startSession({ agentId: AGENT_ID });
+      // Interrupt any playing answer and start a fresh turn.
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
       }
+      beginListening();
     };
     const onKeyUp = (event: KeyboardEvent) => {
-      if (!isPttKey(event)) return;
-      setHeld(false);
+      if (!isPttKey(event) || !heldRef.current) return;
+      heldRef.current = false;
+      void submit();
     };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
@@ -88,16 +180,7 @@ function useVoiceSession(hadAnswer: boolean) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [connected, startSession, endSession]);
-
-  // After release: let the agent finish speaking, then close the session.
-  // Grace is long while we still await the answer, short once it has landed.
-  useEffect(() => {
-    if (held || !connected || isSpeaking) return;
-    const grace = hadAnswer ? 1_500 : 8_000;
-    const timer = setTimeout(() => void endSession(), grace);
-    return () => clearTimeout(timer);
-  }, [held, connected, isSpeaking, hadAnswer, endSession]);
+  }, [beginListening, submit, reset]);
 
   return { phase, haptic };
 }
@@ -246,42 +329,8 @@ function DemoTriggers() {
 }
 
 export function VoiceAgent() {
-  const [hadAnswer, setHadAnswer] = useState(false);
-
-  const clientTools = useMemo(() => {
-    const tool = (name: string, path: string, onCall?: () => void) => async () => {
-      onCall?.();
-      const { data } = await apiClient.get<unknown>(path);
-      return JSON.stringify(data);
-    };
-    return {
-      get_chat_vibe: tool("get_chat_vibe", "/insights/vibe"),
-      get_recent_questions: tool("get_recent_questions", "/insights/questions", () => {
-        // Surface the "streamer consulted chat" moment to viewers (debounced server-side).
-        void apiClient.post("/voice/briefed");
-      }),
-      get_trending: tool("get_trending", "/insights/trending"),
-      get_new_chatters: tool("get_new_chatters", "/insights/chatters"),
-      get_stream_context: tool("get_stream_context", "/insights/context"),
-    };
-  }, []);
-
-  return (
-    <ConversationProvider
-      clientTools={clientTools}
-      onMessage={({ source }) => {
-        if (source === "ai") setHadAnswer(true);
-      }}
-      onDisconnect={() => setHadAnswer(false)}
-    >
-      <VoiceAgentInner hadAnswer={hadAnswer} />
-    </ConversationProvider>
-  );
-}
-
-function VoiceAgentInner({ hadAnswer }: { hadAnswer: boolean }) {
   const events = useVoiceChatFeed();
-  const { phase, haptic } = useVoiceSession(hadAnswer);
+  const { phase, haptic } = useVoicePipeline();
   const realChat = useRealKickChat();
 
   // Auto-connect to a real channel via ?chatroom=<id>&channel=<slug>.
