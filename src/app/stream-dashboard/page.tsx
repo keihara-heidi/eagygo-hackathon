@@ -268,7 +268,7 @@ export default function StreamDashboardPage() {
       </section>
 
       <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-        <div className="mx-auto grid w-full max-w-6xl gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
+        <div className="mx-auto grid w-full max-w-6xl gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.75fr)] xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
           <section className="min-w-0 space-y-4">
             <Card className="border-primary/30 bg-card">
               <CardHeader className="border-b">
@@ -277,15 +277,15 @@ export default function StreamDashboardPage() {
                     <Sparkles className="size-4 text-primary" />
                     Question clusters
                   </CardTitle>
-                  <CardDescription>{streamSummary}</CardDescription>
+                  <CardDescription className="break-words">{streamSummary}</CardDescription>
                 </div>
 
               </CardHeader>
               <CardContent>
                 {questions.length ? (
-                  <ol className="grid gap-3 md:grid-cols-2">
+                  <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                     {questions.slice(0, 8).map((question) => (
-                      <li key={question.id} className="rounded-lg border bg-background p-3">
+                      <li key={question.id} className="min-w-0 rounded-lg border bg-background p-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant={question.answered ? "secondary" : "default"}>
                             {question.count}x
@@ -293,19 +293,19 @@ export default function StreamDashboardPage() {
                           {question.digested ? <Badge variant="outline">digested</Badge> : null}
                           {question.answered ? <Badge variant="outline">answered</Badge> : null}
                         </div>
-                        <p className="mt-3 line-clamp-2 text-sm font-medium leading-6">
+                        <p className="mt-3 line-clamp-2 break-words text-sm font-medium leading-6">
                           “{stripKickMarkup(question.representative)}”
                         </p>
                         <div className="mt-3 flex flex-wrap gap-1.5">
                           {question.askers.slice(0, 3).map((asker) => (
-                            <Badge key={asker} variant="outline">
+                            <Badge key={asker} className="max-w-full truncate" variant="outline">
                               @{asker}
                             </Badge>
                           ))}
                         </div>
                         {!question.answered ? (
                           <Button
-                            className="mt-3"
+                            className="mt-3 w-full sm:w-auto lg:w-full xl:w-auto"
                             disabled={answerMutation.isPending}
                             onClick={() => answerMutation.mutate(question.id)}
                             size="sm"
