@@ -76,7 +76,7 @@ interface TrackedMessage {
 }
 
 const WINDOW_MS = 15 * 60_000;
-const DIGEST_THRESHOLD = 4;
+const DIGEST_THRESHOLD = 3;
 
 const STOPWORDS = new Set(
   "the a an is are was were be been do does did to of in on at for with and or but if so it its it's this that these those you your ur u he she they we i me my his her him them what when who how why where can could would should will just not no yes lol lmao bro dude guys chat im i'm dont don't whats what's yo pls plz".split(
@@ -181,7 +181,10 @@ export class InsightEngine {
 
     if (this.handleCommand(payload, isMod)) return;
 
-    const now = Date.now();
+    // Use the payload timestamp so backdated warmup history lands in the
+    // right rolling windows.
+    const parsedAt = Date.parse(payload.created_at);
+    const now = Number.isNaN(parsedAt) ? Date.now() : parsedAt;
     const words = tokenize(payload.content);
     const isQuestion =
       payload.content.includes("?") || QUESTION_START.test(payload.content.trim());
@@ -315,9 +318,13 @@ export class InsightEngine {
     const lastMinute = this.messages.filter((entry) => now - entry.at <= 60_000);
     const lastFive = this.messages.filter((entry) => now - entry.at <= 300_000);
     const perMinute = lastMinute.length;
-    // Young sessions have < 5 minutes of history — normalize by actual age.
-    const ageMinutes = Math.max(1, Math.min(5, (now - this.startedAt) / 60_000));
-    const baseline = lastFive.length / ageMinutes;
+    // Normalize the baseline by the actual span of history we hold (warmup
+    // history is backdated, so engine age is not a reliable window size).
+    const oldest = lastFive[0];
+    const spanMinutes = oldest
+      ? Math.max(1, Math.min(5, (now - oldest.at) / 60_000))
+      : 1;
+    const baseline = lastFive.length / spanMinutes;
     const emoteCount = lastMinute.filter((entry) => entry.emoteIds.length > 0).length;
     const emoteRatio = perMinute === 0 ? 0 : emoteCount / perMinute;
     const negatives = lastMinute.filter((entry) =>
@@ -327,7 +334,7 @@ export class InsightEngine {
     let vibe: Vibe = "chill";
     if (perMinute < 4) vibe = "dead";
     else if (perMinute >= 45 || (baseline > 0 && perMinute >= baseline * 2.2)) vibe = "hype";
-    else if (perMinute > 0 && negatives / perMinute > 0.3) vibe = "tilted";
+    else if (negatives >= 5 && negatives / perMinute > 0.45) vibe = "tilted";
 
     const descriptions: Record<Vibe, string> = {
       hype: `Chat is popping off — ${perMinute} messages in the last minute, ${Math.round(emoteRatio * 100)}% with emotes.`,

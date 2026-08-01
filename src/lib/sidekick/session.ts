@@ -27,6 +27,10 @@ export class StreamSession {
 
   constructor() {
     this.engine = new MockEngine({ onEvent: (event) => this.ingest(event) });
+  }
+
+  /** Call after all ingest hooks are attached so warmup history is processed. */
+  startEngine() {
     this.engine.start();
   }
 
@@ -89,6 +93,7 @@ export function getSession(): StreamSession {
     globalForSession.sidekickSession = session;
     // Attach the insight engine before any event flows so nothing is missed.
     getInsights(session);
+    session.startEngine();
   }
   return globalForSession.sidekickSession;
 }

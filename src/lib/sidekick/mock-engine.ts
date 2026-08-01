@@ -54,6 +54,7 @@ export function buildChatMessage(
   sender: KickUser,
   text: string,
   emoteNames: (keyof typeof EMOTES)[] = [],
+  createdAt?: Date,
 ): KickEvent {
   const { content, emotes } = withEmotes(text, emoteNames);
   const payload: ChatMessageEvent = {
@@ -62,7 +63,7 @@ export function buildChatMessage(
     sender,
     content,
     emotes,
-    created_at: new Date().toISOString(),
+    created_at: (createdAt ?? new Date()).toISOString(),
   };
   return { type: "chat.message.sent", version: 1, payload };
 }
@@ -98,7 +99,30 @@ export class MockEngine {
 
   start() {
     if (this.timer) return;
+    this.warmup();
     this.timer = setInterval(() => this.tick(), TICK_MS);
+  }
+
+  /**
+   * Seeds ~4 minutes of backdated history so the chat column and insight
+   * windows look alive from the very first query after a cold start.
+   */
+  private warmup() {
+    const now = Date.now();
+    const messageCount = 45;
+    for (let i = 0; i < messageCount; i += 1) {
+      const at = new Date(now - (messageCount - i) * 5_300);
+      const persona = pick(PERSONAS);
+      const roll = Math.random();
+      if (roll < 0.12) {
+        this.onEvent(buildChatMessage(persona.user, pick(AMBIENT_LINES), ["KEKW"], at));
+      } else if (roll < 0.18) {
+        const topic = pick(QUESTION_TOPICS);
+        this.onEvent(buildChatMessage(persona.user, pick(topic.phrasings), [], at));
+      } else {
+        this.onEvent(buildChatMessage(persona.user, pick(AMBIENT_LINES), [], at));
+      }
+    }
   }
 
   stop() {
