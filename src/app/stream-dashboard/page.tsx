@@ -1,8 +1,7 @@
 "use client";
 
-import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { MessageSquare, Radio, Send, Sparkles, Users } from "lucide-react";
+import { MessageSquare, Radio, Sparkles, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,17 +10,15 @@ import {
   CardAction,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import {
   TypographyH1,
   TypographyMuted,
   TypographySmall,
 } from "@/components/ui/typography";
-import { STREAM_INFO, STREAMER } from "@/lib/sidekick/personas";
+import { STREAM_INFO } from "@/lib/sidekick/personas";
 import type { SidekickEvent } from "@/lib/sidekick/types";
 
 const MESSAGE_WINDOW_MS = 60_000;
@@ -292,8 +289,6 @@ async function triggerDemo(action: "hype" | "question_flood" | "new_viewer") {
 export default function StreamDashboardPage() {
   const [events, setEvents] = useState<SidekickEvent[]>([]);
   const [connectionState, setConnectionState] = useState<ConnectionState>("connecting");
-  const [draft, setDraft] = useState("");
-  const [localMessages, setLocalMessages] = useState<ChatLine[]>([]);
 
   useEffect(() => {
     const source = new EventSource("/api/stream/events");
@@ -312,30 +307,12 @@ export default function StreamDashboardPage() {
   const insights = useMemo(() => deriveInsights(events), [events]);
   const chatLines = useMemo(
     () =>
-      [...events.map(toChatLine), ...localMessages]
+      events
+        .map(toChatLine)
         .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
         .slice(-80),
-    [events, localMessages],
+    [events],
   );
-
-  const submitMessage = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const content = draft.trim();
-    if (!content) return;
-
-    setLocalMessages((current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
-        author: STREAMER.username,
-        content,
-        timestamp: new Date().toISOString(),
-        tone: "streamer",
-        color: "#53FC18",
-      },
-    ]);
-    setDraft("");
-  };
 
   return (
     <main className="relative isolate h-dvh max-h-dvh overflow-hidden px-3 py-3">
@@ -453,20 +430,6 @@ export default function StreamDashboardPage() {
               )}
             </div>
           </CardContent>
-          <CardFooter className="shrink-0">
-            <form className="flex w-full flex-col gap-2" onSubmit={submitMessage}>
-              <Textarea
-                className="max-h-12 min-h-10 resize-none"
-                placeholder="Reply as streamer… e.g. !answered 800 DPI, 0.8 sens"
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-              />
-              <Button className="h-10 w-full" type="submit">
-                <Send className="size-4" />
-                Send
-              </Button>
-            </form>
-          </CardFooter>
         </Card>
       </div>
     </main>
