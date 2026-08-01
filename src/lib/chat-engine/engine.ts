@@ -305,15 +305,13 @@ const globalForChatEngine = globalThis as typeof globalThis & {
 };
 
 /**
- * HMR-safe process-wide singleton. In dev the baseline timeline self-starts
- * so `/api/stream` is immediately lively; in prod, start it via `/api/demo`.
- * Set CHAT_ENGINE_DEMO=off to skip the self-start — required when consuming
- * real webhooks via /api/webhook, or mock chat interleaves with live events.
+ * HMR-safe process-wide singleton. Real webhook data is the default; opt into
+ * the mock baseline only when explicitly demoing without KICK webhooks.
  */
 export function getChatEngine(): ChatEngine {
   if (!globalForChatEngine.sidekickChatEngine) {
     const engine = createChatEngine();
-    if (process.env.NODE_ENV === "development" && process.env.CHAT_ENGINE_DEMO !== "off") {
+    if (process.env.CHAT_ENGINE_DEMO === "on") {
       engine.demo.start();
     }
     globalForChatEngine.sidekickChatEngine = engine;

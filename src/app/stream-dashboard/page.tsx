@@ -18,7 +18,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -164,14 +163,6 @@ function minutesSince(timestamp?: string | null) {
   return Math.max(0, Math.floor((Date.now() - startedAt) / 60_000));
 }
 
-async function triggerDemo(scenario: "hype_spike" | "question_flood" | "new_viewer") {
-  await fetch("/api/demo", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "trigger", scenario }),
-  });
-}
-
 export default function StreamDashboardPage() {
   const queryClient = useQueryClient();
   const { stream: connectedStream } = useConnectedKickStream();
@@ -300,17 +291,7 @@ export default function StreamDashboardPage() {
                   </CardTitle>
                   <CardDescription>{streamSummary}</CardDescription>
                 </div>
-                <CardAction className="hidden items-center gap-1 sm:flex">
-                  <Button size="xs" variant="outline" onClick={() => void triggerDemo("new_viewer")}>
-                    New viewer
-                  </Button>
-                  <Button size="xs" variant="outline" onClick={() => void triggerDemo("question_flood")}>
-                    Questions
-                  </Button>
-                  <Button size="xs" onClick={() => void triggerDemo("hype_spike")}>
-                    Hype
-                  </Button>
-                </CardAction>
+
               </CardHeader>
               <CardContent>
                 {questions.length ? (
