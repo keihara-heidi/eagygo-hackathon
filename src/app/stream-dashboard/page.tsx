@@ -59,6 +59,7 @@ type ChatLine = {
 };
 
 const INSIGHT_REFETCH_MS = 2_000;
+const QUESTIONS_QUERY_KEY = ["insights", "questions"] as const;
 
 function formatTime(timestamp: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -163,6 +164,30 @@ function minutesSince(timestamp?: string | null) {
   return Math.max(0, Math.floor((Date.now() - startedAt) / 60_000));
 }
 
+function mergeQuestionsInMemory(
+  current: QuestionCluster[],
+  incoming: QuestionCluster[],
+) {
+  if (incoming.length === 0) return current;
+
+  const cache = new Map(current.map((question) => [question.id, question]));
+  const incomingIds = new Set<string>();
+  const orderedIncoming: QuestionCluster[] = [];
+
+  for (const question of incoming) {
+    if (incomingIds.has(question.id)) continue;
+    incomingIds.add(question.id);
+    const merged = { ...cache.get(question.id), ...question };
+    cache.set(question.id, merged);
+    orderedIncoming.push(merged);
+  }
+
+  return [
+    ...orderedIncoming,
+    ...current.filter((question) => !incomingIds.has(question.id)),
+  ];
+}
+
 export default function StreamDashboardPage() {
   const queryClient = useQueryClient();
   const { stream: connectedStream } = useConnectedKickStream();
@@ -179,8 +204,14 @@ export default function StreamDashboardPage() {
   const connectedSlug = connectedStream?.slug;
 
   const questionsQuery = useQuery({
-    queryKey: ["insights", "questions"],
-    queryFn: () => getInsight<QuestionsResponse>("/insights/questions"),
+    queryKey: QUESTIONS_QUERY_KEY,
+    queryFn: async () => {
+      const response = await getInsight<QuestionsResponse>("/insights/questions");
+      const previous = queryClient.getQueryData<QuestionsResponse>(QUESTIONS_QUERY_KEY);
+      return {
+        questions: mergeQuestionsInMemory(previous?.questions ?? [], response.questions),
+      };
+    },
     placeholderData: keepPreviousData,
     refetchInterval: INSIGHT_REFETCH_MS,
     refetchIntervalInBackground: true,
@@ -205,8 +236,15 @@ export default function StreamDashboardPage() {
     mutationFn: async (id: string) => {
       await apiClient.post(`/insights/questions/${encodeURIComponent(id)}/answered`);
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["insights", "questions"] });
+    onSuccess: async (_data, id) => {
+      queryClient.setQueryData<QuestionsResponse>(QUESTIONS_QUERY_KEY, (current) => ({
+        questions: (current?.questions ?? []).map((question) =>
+          question.id === id
+            ? { ...question, answered: true, answered_at: new Date().toISOString() }
+            : question,
+        ),
+      }));
+      await queryClient.invalidateQueries({ queryKey: QUESTIONS_QUERY_KEY });
     },
   });
 
