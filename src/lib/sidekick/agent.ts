@@ -17,6 +17,7 @@ import { fireworks } from "@ai-sdk/fireworks";
 import { z } from "zod";
 
 import { getSidekickRuntime } from "@/lib/sidekick/runtime";
+import { getStreamContext } from "@/lib/sidekick/stream-context";
 
 const DEFAULT_MODELS = {
   anthropic: "claude-sonnet-4-6",
@@ -101,9 +102,9 @@ const sidekickTools = {
   }),
   get_stream_context: tool({
     description:
-      "Stream metadata: streamer, title, category, uptime, viewer count, and a primer on who the streamer is.",
+      "Stream metadata from the connected KICK stream: streamer, title, category, uptime, viewer count, and a primer on who the streamer is.",
     inputSchema: z.object({}),
-    execute: async () => getSidekickRuntime().insights.context(),
+    execute: async () => getStreamContext(getSidekickRuntime().insights),
   }),
   get_answered_questions: tool({
     description:
