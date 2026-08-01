@@ -21,6 +21,8 @@ Spec of record: `SPEC.md` (Sidekick — AI middleman for Kick chat), including t
 
 One seam: the chat event stream. A mock chat-engine adapter now (scripted, docs-faithful events with demo controls), a KICK webhook-receiver adapter later — same interface. Behind the seam sits the Insight Engine as the deep module: rolling word/emote frequency buckets, question detection + similarity clustering, vibe classification, chatter identity tracking, answered-question store. It lives in Next.js server code (API routes); clients update via SSE or polling. Thin surfaces at the edges: viewer copilot widget (`/`), streamer read-only dashboard (`/stream-dashboard`, mobile-screen locked), chat-native bot digest + `!answered` command, voice agent (`/voice`).
 
+Surfaces share one contract — the insight API: `get_chat_vibe`, `get_recent_questions`, `get_trending`, `get_new_chatters`, `get_stream_context`, `get_answered_questions`, built once as API routes over the Insight Engine. The copilot's tool-call display uses these exact names; the voice agent calls the same routes. Freeze tool names early — renaming means touching the ElevenLabs agent config too. Voice runs on ElevenLabs Agents (`@elevenlabs/react` client tools over WebRTC), with browser Web Speech API behind a flag as fallback. The answered-questions store is shared state: `!answered` must be visible to the voice agent.
+
 ## The KICK module — `src/lib/kick/`
 
 Wrapper over the KICK Public API. Types mirror https://docs.kick.com verbatim (snake_case, exact nesting) so mock data is automatically faithful to the real payloads — a judging requirement.
