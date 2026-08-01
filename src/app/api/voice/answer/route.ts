@@ -15,6 +15,8 @@ const RECAP_PATTERN = /recap|catch me up|catch up|what did i miss|missed/i;
 const PROMPT_LEAK_PATTERN =
   /\b(?:the user (?:wants|asked)|i need to|system prompt|instructions?|under \d+ words|never (?:add|speak)|let me (?:compress|rewrite)|output only)\b/i;
 const NUMBERED_LIST_PATTERN = /(?:^|\s)\d+\.\s/;
+const VIEWER_HANDLES_PATTERN =
+  /@[a-z0-9_]+(?:\s*,\s*@[a-z0-9_]+)*(?:\s*,?\s+and\s+@[a-z0-9_]+)?/gi;
 
 /**
  * Keeps model reasoning and prompt echoes away from TTS, then trims only at a
@@ -28,8 +30,11 @@ function cleanSpokenAnswer(text: string, question: string): string | null {
     .split(/\n{2,}/)
     .map((part) => part.replace(/\s+/g, " ").trim())
     .filter(Boolean);
-  const candidate =
+  const rawCandidate =
     [...paragraphs].reverse().find((part) => !PROMPT_LEAK_PATTERN.test(part)) ?? "";
+  const candidate = rawCandidate.replace(VIEWER_HANDLES_PATTERN, (handles) =>
+    (handles.match(/@/g)?.length ?? 0) > 1 ? "viewers" : "a viewer",
+  );
   const quoteCount = (candidate.match(/"/g) ?? []).length;
   if (
     !candidate ||
