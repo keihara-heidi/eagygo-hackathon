@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Gift, Heart, Shield, Star } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import type { SidekickEvent } from "@/lib/sidekick/types";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +39,7 @@ function renderContent(content: string) {
     return (
       <span
         key={index}
-        className="mx-0.5 inline-block rounded bg-primary/15 px-1 text-[11px] font-bold text-primary"
+        className="mx-0.5 inline-block rounded bg-primary/25 px-1 text-[10px] font-bold text-primary"
       >
         {match[1]}
       </span>
@@ -48,31 +47,32 @@ function renderContent(content: string) {
   });
 }
 
-function Line({ event }: { event: SidekickEvent }) {
+function OverlayLine({ event }: { event: SidekickEvent }) {
   const { event: kickEvent } = event;
 
   if (kickEvent.type === "channel.followed") {
     return (
-      <div className="flex items-center gap-1.5 px-3 py-1 text-xs text-muted-foreground">
-        <Heart className="size-3 text-rose-400" />
+      <div className="flex items-center gap-1 text-[11px] text-white/70">
+        <Heart className="size-3 shrink-0 text-rose-400" />
         <span className="font-semibold">{kickEvent.payload.follower.username}</span>
-        followed the channel
+        <span className="text-white/50">followed</span>
       </div>
     );
   }
   if (kickEvent.type === "channel.subscription.new") {
     return (
-      <div className="mx-2 rounded border-l-2 border-primary bg-primary/10 px-2 py-1 text-xs">
-        <span className="font-semibold">{kickEvent.payload.subscriber.username}</span> just
+      <div className="w-fit rounded bg-primary/25 px-1.5 py-0.5 text-[11px] text-white">
+        ⭐ <span className="font-semibold">{kickEvent.payload.subscriber.username}</span>{" "}
         subscribed!
       </div>
     );
   }
   if (kickEvent.type === "kicks.gifted") {
     return (
-      <div className="mx-2 rounded border-l-2 border-amber-400 bg-amber-400/10 px-2 py-1 text-xs">
+      <div className="w-fit rounded bg-amber-400/25 px-1.5 py-0.5 text-[11px] text-white">
+        <Gift className="mr-0.5 inline size-3 text-amber-300" />
         <span className="font-semibold">{kickEvent.payload.sender.username}</span> gifted{" "}
-        <span className="font-bold text-amber-400">{kickEvent.payload.gift.amount} KICKs</span>
+        <span className="font-bold text-amber-300">{kickEvent.payload.gift.amount} KICKs</span>
       </div>
     );
   }
@@ -85,41 +85,40 @@ function Line({ event }: { event: SidekickEvent }) {
   return (
     <div
       className={cn(
-        "px-3 py-0.5 text-[13px] leading-5",
-        isBot && "mx-2 my-1 rounded border border-primary/40 bg-primary/10 py-1.5",
+        "w-fit max-w-full rounded px-1.5 py-0.5 text-[11px] leading-4 text-white",
+        isBot ? "border border-primary/50 bg-primary/20" : "bg-black/35",
       )}
     >
       {isBot && (
-        <Badge className="mb-0.5 mr-1 h-4 bg-primary px-1 text-[10px] text-primary-foreground">
+        <span className="mr-1 rounded bg-primary px-1 text-[9px] font-black text-primary-foreground">
           SIDEKICK
-        </Badge>
+        </span>
       )}
-      <span className="inline-flex items-center gap-0.5 align-text-top">
+      <span className="mr-0.5 inline-flex items-center gap-0.5 align-text-top">
         {badges.some((badge) => badge.type === "moderator") && (
-          <Shield className="size-3 text-emerald-400" />
+          <Shield className="size-2.5 text-emerald-300" />
         )}
         {badges.some((badge) => badge.type === "subscriber") && (
-          <Star className="size-3 text-amber-400" />
+          <Star className="size-2.5 text-amber-300" />
         )}
-        {badges.some((badge) => badge.type === "sub_gifter") && (
-          <Gift className="size-3 text-fuchsia-400" />
-        )}
-      </span>{" "}
+      </span>
       <span
-        className="font-semibold"
-        style={{ color: payload.sender.identity?.username_color ?? "#999" }}
+        className="font-bold"
+        style={{ color: payload.sender.identity?.username_color ?? "#bbb" }}
       >
         {payload.sender.username}
       </span>
-      <span className="text-muted-foreground">: </span>
-      <span className={cn(isBot && "font-medium text-foreground")}>
-        {renderContent(payload.content)}
-      </span>
+      <span className="text-white/60">: </span>
+      {renderContent(payload.content)}
     </div>
   );
 }
 
-export function VoiceChatColumn({ events }: { events: SidekickEvent[] }) {
+/**
+ * Kick-mobile-style chat overlay: translucent lines over the camera feed,
+ * newest at the bottom, fading out toward the top.
+ */
+export function VoiceChatOverlay({ events }: { events: SidekickEvent[] }) {
   const viewportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -128,13 +127,13 @@ export function VoiceChatColumn({ events }: { events: SidekickEvent[] }) {
   }, [events]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col border-l bg-card/60">
-      <div className="border-b px-3 py-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-        Chat
-      </div>
-      <div ref={viewportRef} className="min-h-0 flex-1 overflow-y-auto py-2">
-        {events.map((event) => (
-          <Line key={event.id} event={event} />
+    <div className="pointer-events-none absolute inset-x-0 bottom-24 z-10 px-3">
+      <div
+        ref={viewportRef}
+        className="flex max-h-64 flex-col gap-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_18%)]"
+      >
+        {events.slice(-40).map((event) => (
+          <OverlayLine key={event.id} event={event} />
         ))}
       </div>
     </div>

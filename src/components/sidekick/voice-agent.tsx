@@ -7,16 +7,32 @@ import {
   useConversationStatus,
   useConversationMode,
 } from "@elevenlabs/react";
-import { Bot, Eye, Flame, MessageCircleQuestion, Mic, Radio, UserPlus, Wrench, X } from "lucide-react";
+import {
+  Bot,
+  Eye,
+  Flame,
+  MessageCircleQuestion,
+  Mic,
+  RefreshCcw,
+  UserPlus,
+  Wrench,
+  X,
+} from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { apiClient } from "@/lib/api-client";
-import { STREAM_INFO, STREAMER } from "@/lib/sidekick/personas";
+import { STREAMER } from "@/lib/sidekick/personas";
 import { cn } from "@/lib/utils";
 
-import { useVoiceChatFeed, VoiceChatColumn } from "./voice-chat-column";
+import { useVoiceChatFeed, VoiceChatOverlay } from "./voice-chat-column";
 
 const AGENT_ID = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
+
+/** Voice-demo presentation only — the pitch scenario is a phone IRL stream. */
+const IRL_PRESET = {
+  title: "IRL NIGHT MARKET WALK 🍜 — DAY 2",
+  location: "Tokyo, JP",
+  viewers: 1_243,
+};
 
 interface TranscriptLine {
   id: string;
@@ -42,18 +58,18 @@ function Waveform({ active }: { active: boolean }) {
 }
 
 /**
- * Wispr Flow-style indicator: a compact floating pill above the stream that
- * expands while the voice session is live — waveform, state, transcript, and
- * the latest tool call.
+ * Wispr Flow-style indicator pinned above the phone's bottom edge: compact
+ * mic chip when idle, expanding into waveform + transcript + tool chip while
+ * the voice session is live.
  */
 function WhisprPill({
   transcript,
   lastTool,
-  onToolActivity,
+  onNotice,
 }: {
   transcript: TranscriptLine[];
   lastTool: string | null;
-  onToolActivity: (text: string) => void;
+  onNotice: (text: string) => void;
 }) {
   const { startSession, endSession } = useConversationControls();
   const { status } = useConversationStatus();
@@ -76,13 +92,12 @@ function WhisprPill({
       return;
     }
     if (!AGENT_ID) {
-      onToolActivity("NEXT_PUBLIC_ELEVENLABS_AGENT_ID is not set");
+      onNotice("NEXT_PUBLIC_ELEVENLABS_AGENT_ID is not set");
       return;
     }
     await startSession({ agentId: AGENT_ID });
-  }, [connected, endSession, startSession, onToolActivity]);
+  }, [connected, endSession, startSession, onNotice]);
 
-  // Keyboard trigger: press V to toggle the voice session (game-safe key).
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() !== "v" || event.repeat) return;
@@ -95,11 +110,11 @@ function WhisprPill({
   }, [toggle]);
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-6 z-30 flex justify-center">
+    <div className="pointer-events-none absolute inset-x-0 bottom-5 z-30 flex justify-center px-4">
       <div
         className={cn(
-          "pointer-events-auto overflow-hidden rounded-[26px] border bg-black/85 shadow-2xl shadow-black/60 backdrop-blur transition-all duration-300",
-          connected ? "w-[440px] border-primary/40 px-4 py-3" : "w-auto border-border px-2 py-1.5",
+          "pointer-events-auto overflow-hidden rounded-[24px] border bg-black/85 shadow-2xl shadow-black/60 backdrop-blur transition-all duration-300",
+          connected ? "w-full border-primary/40 px-3.5 py-2.5" : "w-auto border-white/15 px-2 py-1.5",
           haptic && "sidekick-haptic",
         )}
       >
@@ -107,16 +122,15 @@ function WhisprPill({
           <button
             type="button"
             onClick={() => void toggle()}
-            className="flex items-center gap-2 px-2 py-0.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+            className="flex items-center gap-2 px-2 py-0.5 text-xs font-semibold text-white/80"
           >
-            <span className="flex size-6 items-center justify-center rounded-full bg-primary/15">
+            <span className="flex size-6 items-center justify-center rounded-full bg-primary/20">
               <Mic className="size-3.5 text-primary" />
             </span>
             Ask Sidekick
-            <kbd className="rounded border px-1 text-[9px] text-muted-foreground">V</kbd>
           </button>
         ) : (
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary">
                 <Bot className="size-3.5" /> Sidekick
@@ -125,7 +139,7 @@ function WhisprPill({
               <span
                 className={cn(
                   "text-[9px] font-semibold uppercase tracking-wider",
-                  isSpeaking ? "text-primary" : "text-neutral-400",
+                  isSpeaking ? "text-primary" : "text-white/50",
                 )}
               >
                 {isSpeaking ? "speaking" : "listening"}
@@ -138,14 +152,14 @@ function WhisprPill({
               <button
                 type="button"
                 onClick={() => void toggle()}
-                className={cn("shrink-0 text-muted-foreground hover:text-foreground", !lastTool && "ml-auto")}
+                className={cn("shrink-0 text-white/50 hover:text-white", !lastTool && "ml-auto")}
               >
                 <X className="size-3.5" />
               </button>
             </div>
             {lastUser && (
-              <p className="truncate text-[11px] text-neutral-400">
-                <span className="text-neutral-500">You: </span>
+              <p className="truncate text-[11px] text-white/60">
+                <span className="text-white/40">You: </span>
                 {lastUser.text}
               </p>
             )}
@@ -162,29 +176,15 @@ function WhisprPill({
   );
 }
 
-/** Mocked gameplay visual so the voice demo reads as a real stream. */
-function GameplayVisual() {
+/** Mock IRL camera feed: warm night-market gradient + phone camera chrome. */
+function CameraFeed() {
   return (
-    <div className="relative flex-1 overflow-hidden bg-[radial-gradient(circle_at_30%_20%,rgba(83,252,24,0.08),transparent_50%),linear-gradient(160deg,#0a0d0a_0%,#101510_55%,#0a0d0a_100%)]">
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-        <span className="text-6xl font-black uppercase tracking-tight text-foreground/15">
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_15%,rgba(252,182,69,0.25),transparent_45%),radial-gradient(circle_at_20%_80%,rgba(197,114,253,0.18),transparent_50%),linear-gradient(170deg,#1a1210_0%,#241a12_45%,#120d0f_100%)]">
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 pb-40">
+        <span className="text-4xl font-black uppercase tracking-tight text-white/10">
           {STREAMER.username}
         </span>
-        <span className="text-sm text-muted-foreground/50">
-          [ mock gameplay feed — {STREAM_INFO.category.name} ]
-        </span>
-      </div>
-      {/* faux in-game HUD to sell the frame */}
-      <div className="absolute left-1/2 top-3 flex -translate-x-1/2 items-center gap-1 rounded bg-black/40 px-3 py-1 font-mono text-[10px] text-neutral-400">
-        N ─── 042 ─── NE
-      </div>
-      <div className="absolute bottom-4 left-4 flex items-center gap-2 font-mono text-[11px]">
-        <span className="rounded bg-black/50 px-2 py-1 text-primary">HP 100</span>
-        <span className="rounded bg-black/50 px-2 py-1 text-sky-300">AP 50</span>
-        <span className="rounded bg-black/50 px-2 py-1 text-neutral-300">HRM-9 · 30/120</span>
-      </div>
-      <div className="absolute right-4 top-3 rounded bg-black/40 px-2 py-1 font-mono text-[10px] text-neutral-400">
-        RANKED · TOP 500 GRIND
+        <span className="text-xs text-white/25">[ mock IRL camera feed — {IRL_PRESET.location} ]</span>
       </div>
     </div>
   );
@@ -194,20 +194,20 @@ function DemoTriggers() {
   const trigger = (payload: Record<string, unknown>) =>
     void apiClient.post("/demo/trigger", payload);
   return (
-    <div className="ml-auto flex items-center gap-1">
+    <div className="flex items-center gap-1">
       <button
         type="button"
         title="Hype spike"
         onClick={() => trigger({ action: "hype" })}
-        className="rounded p-1 text-muted-foreground/50 hover:text-orange-400"
+        className="rounded-full bg-black/30 p-1.5 text-white/40 hover:text-orange-400"
       >
         <Flame className="size-3.5" />
       </button>
       <button
         type="button"
         title="Question flood"
-        onClick={() => trigger({ action: "question_flood", topic: "loadout" })}
-        className="rounded p-1 text-muted-foreground/50 hover:text-sky-400"
+        onClick={() => trigger({ action: "question_flood", topic: "schedule" })}
+        className="rounded-full bg-black/30 p-1.5 text-white/40 hover:text-sky-400"
       >
         <MessageCircleQuestion className="size-3.5" />
       </button>
@@ -215,7 +215,7 @@ function DemoTriggers() {
         type="button"
         title="New viewer"
         onClick={() => trigger({ action: "new_viewer" })}
-        className="rounded p-1 text-muted-foreground/50 hover:text-primary"
+        className="rounded-full bg-black/30 p-1.5 text-white/40 hover:text-primary"
       >
         <UserPlus className="size-3.5" />
       </button>
@@ -228,7 +228,7 @@ export function VoiceAgent() {
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [lastTool, setLastTool] = useState<string | null>(null);
 
-  const pushTool = useCallback((text: string) => setLastTool(text), []);
+  const pushNotice = useCallback((text: string) => setLastTool(text), []);
 
   const clientTools = useMemo(() => {
     const tool = (name: string, path: string, onCall?: () => void) => async () => {
@@ -259,45 +259,49 @@ export function VoiceAgent() {
         ]);
       }}
     >
-      <div className="flex h-screen flex-col overflow-hidden bg-background">
-        <header className="flex items-center gap-3 border-b px-4 py-2">
-          <span className="text-lg font-black tracking-tight text-primary">KICK</span>
-          <span className="text-xs text-muted-foreground">/ {STREAMER.channel_slug}</span>
-          <DemoTriggers />
-        </header>
+      {/* Letterboxed phone viewport on desktop; full screen on a real phone */}
+      <div className="flex h-screen items-center justify-center bg-neutral-950">
+        <div className="relative h-full max-h-[900px] w-full max-w-[420px] overflow-hidden bg-black sm:rounded-[36px] sm:border sm:border-neutral-800 sm:shadow-[0_0_80px_rgba(0,0,0,0.9)]">
+          <CameraFeed />
 
-        <div className="relative grid min-h-0 flex-1 grid-cols-[1fr_340px]">
-          <div className="relative flex min-h-0 flex-col">
-            <div className="absolute left-4 top-4 z-10 flex items-center gap-2">
-              <Badge className="gap-1 bg-destructive text-white">
-                <Radio className="size-3" /> LIVE
-              </Badge>
-              <Badge variant="secondary" className="gap-1">
-                <Eye className="size-3" /> {STREAM_INFO.viewer_count.toLocaleString()}
-              </Badge>
-            </div>
-
-            <GameplayVisual />
-
-            <div className="flex items-center gap-3 border-t px-4 py-3">
+          {/* top chrome */}
+          <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-between p-3 pt-4">
+            <div className="flex items-center gap-2 rounded-full bg-black/40 py-1 pl-1 pr-3 backdrop-blur">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={STREAMER.profile_picture}
                 alt={STREAMER.username}
-                className="size-10 rounded-full border-2 border-primary"
+                className="size-7 rounded-full border border-primary"
               />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold">{STREAM_INFO.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {STREAMER.username} · {STREAM_INFO.category.name}
-                </p>
+              <div className="leading-tight">
+                <p className="text-[11px] font-bold text-white">{STREAMER.username}</p>
+                <p className="max-w-40 truncate text-[9px] text-white/60">{IRL_PRESET.title}</p>
               </div>
             </div>
-
-            <WhisprPill transcript={transcript} lastTool={lastTool} onToolActivity={pushTool} />
+            <div className="flex flex-col items-end gap-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="rounded bg-destructive px-1.5 py-0.5 text-[9px] font-black text-white">
+                  LIVE
+                </span>
+                <span className="flex items-center gap-1 rounded bg-black/40 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur">
+                  <Eye className="size-2.5" /> {IRL_PRESET.viewers.toLocaleString()}
+                </span>
+              </div>
+              <DemoTriggers />
+            </div>
           </div>
 
-          <VoiceChatColumn events={events} />
+          {/* camera flip affordance, sells the phone POV */}
+          <button
+            type="button"
+            className="absolute right-3 top-1/2 z-10 rounded-full bg-black/30 p-2 text-white/40"
+            title="Flip camera (mock)"
+          >
+            <RefreshCcw className="size-4" />
+          </button>
+
+          <VoiceChatOverlay events={events} />
+          <WhisprPill transcript={transcript} lastTool={lastTool} onNotice={pushNotice} />
         </div>
       </div>
     </ConversationProvider>
