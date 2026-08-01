@@ -61,6 +61,23 @@ function stripKickMarkup(content: string) {
   return content.replace(/\[emote:[^:\]]+:([^\]]+)\]/g, ":$1:").trim();
 }
 
+function renderKickContent(content: string) {
+  return content.split(/(\[emote:\d+:[^\]]+\])/g).map((part, index) => {
+    const match = /^\[emote:(\d+):([^\]]+)\]$/.exec(part);
+    if (!match) return <span key={index}>{part}</span>;
+
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        key={index}
+        alt={match[2]}
+        className="mx-0.5 inline-block h-6 max-w-16 object-contain align-middle"
+        src={`https://files.kick.com/emotes/${match[1]}/fullsize`}
+      />
+    );
+  });
+}
+
 function formatTime(timestamp: string) {
   return new Intl.DateTimeFormat(undefined, {
     hour: "2-digit",
@@ -78,7 +95,7 @@ function toChatLine(wrapped: StampedEvent): ChatLine {
       return {
         id,
         author: event.payload.sender.username,
-        content: stripKickMarkup(event.payload.content),
+        content: event.payload.content,
         timestamp: event.payload.created_at,
         tone: event.payload.sender.username === "Sidekick" ? "sidekick" : "message",
         color: event.payload.sender.identity?.username_color,
@@ -359,7 +376,7 @@ export default function StreamDashboardPage() {
                             </span>
                           </div>
                           <p className={line.tone === "system" ? "text-muted-foreground" : "text-foreground"}>
-                            {line.content}
+                            {renderKickContent(line.content)}
                           </p>
                         </li>
                       ))}
