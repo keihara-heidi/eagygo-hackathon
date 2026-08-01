@@ -15,6 +15,7 @@ interface PositionedEmote {
 }
 
 const INLINE_EMOTE_PATTERN = /(\[emote:\d+:[^\]]+\])/g;
+const INLINE_EMOTE_TOKEN = /\[emote:\d+:[^\]]+\]/;
 const INLINE_EMOTE_EXACT = /^\[emote:(\d+):([^\]]+)\]$/;
 
 function emoteUrl(id: string) {
@@ -53,8 +54,7 @@ export function KickChatContent({
   emotes,
   imageClassName = "h-7 max-w-20",
 }: KickChatContentProps) {
-  if (INLINE_EMOTE_PATTERN.test(content)) {
-    INLINE_EMOTE_PATTERN.lastIndex = 0;
+  if (INLINE_EMOTE_TOKEN.test(content)) {
     return content.split(INLINE_EMOTE_PATTERN).map((part, index) => {
       const match = INLINE_EMOTE_EXACT.exec(part);
       if (!match) return <span key={index}>{part}</span>;
