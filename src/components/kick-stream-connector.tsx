@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { CheckCircle2, ExternalLink, PlugZap, X } from "lucide-react";
+import { CheckCircle2, ExternalLink, LinkIcon, PlugZap, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,42 +32,51 @@ export function KickStreamConnector({ className }: KickStreamConnectorProps) {
   }
 
   return (
-    <section className={cn("rounded-2xl border bg-card/90 p-3 shadow-sm", className)}>
-      <div className="mb-2 flex items-center justify-between gap-3">
+    <section
+      className={cn(
+        "rounded-3xl border-2 border-primary/35 bg-card/95 p-4 shadow-lg shadow-primary/10",
+        className,
+      )}
+    >
+      <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
-            <PlugZap className="size-3.5" />
-            Connect stream
+          <p className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.16em] text-primary">
+            <PlugZap className="size-4" />
+            Paste Kick stream link
           </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Paste a Kick stream link to target this UI.
+          <p className="mt-1 text-xs text-muted-foreground">
+            This is the stream target selector for the viewer + dashboard UI.
           </p>
         </div>
         {stream ? (
-          <Badge variant="outline" className="shrink-0">
+          <Badge variant="default" className="shrink-0">
             <CheckCircle2 className="size-3" />@{stream.slug}
           </Badge>
         ) : null}
       </div>
 
-      <form className="flex gap-2" onSubmit={submit}>
-        <Input
-          aria-label="Kick stream URL"
-          className="h-9 bg-background/70"
-          onChange={(event) => {
-            setValue(event.target.value);
-            setError(null);
-          }}
-          placeholder="https://kick.com/channel"
-          value={value}
-        />
-        <Button className="h-9 shrink-0" type="submit">
+      <form className="grid gap-2 sm:grid-cols-[1fr_auto_auto]" onSubmit={submit}>
+        <label className="relative block">
+          <span className="sr-only">Kick stream URL</span>
+          <LinkIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-primary" />
+          <Input
+            aria-label="Kick stream URL"
+            className="h-12 rounded-2xl border-2 border-primary/30 bg-background pl-10 pr-4 text-base shadow-inner placeholder:text-muted-foreground/70 focus-visible:border-primary"
+            onChange={(event) => {
+              setValue(event.target.value);
+              setError(null);
+            }}
+            placeholder="https://kick.com/orbitfps"
+            value={value}
+          />
+        </label>
+        <Button className="h-12 rounded-2xl px-5 font-bold" type="submit">
           Connect
         </Button>
         {stream ? (
           <Button
             aria-label="Disconnect stream"
-            className="size-9 shrink-0"
+            className="size-12 shrink-0 rounded-2xl"
             onClick={clearConnection}
             size="icon"
             type="button"
