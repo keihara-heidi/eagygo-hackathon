@@ -14,7 +14,7 @@ An AI agent that sits between the streamer and their chat: viewers ask it what's
 | Brief requirement | How Sidekick answers it |
 |---|---|
 | Help streamers understand chat | Chat-native nudges (bot posts clustered questions into chat) + voice agent for vibe/trends on demand |
-| Give viewers a way to participate beyond typing | Personal AI copilot widget — ask anything about the stream/chat without shouting into the scroll |
+| Give viewers a way to participate beyond typing | Personal AI copilot chat — ask anything about the stream/chat without shouting into the scroll |
 | **Genuine feedback loop** | Viewer questions cluster → Sidekick posts a digest into chat → streamer answers on stream → `!answered` → bot relays the answer to every future asker. Both sides feed each other continuously. |
 | Explainable in <2 min | "New viewer joins mid-stream, asks 'what's going on?', gets a TLDR. Streamer asks 'what's chat saying?', gets an answer. That's it." |
 | Mock data reflecting real Kick data | All mock events use the exact `chat.message.sent` / webhook payload shapes from the Kick Public API docs |
@@ -25,10 +25,10 @@ An AI agent that sits between the streamer and their chat: viewers ask it what's
 
 ### 1. Viewer Copilot (engagement side)
 
-A chatbot widget in the bottom-right corner of a mocked Kick stream page (standard third-party-widget placement).
+A standalone authenticated viewer chat for asking Sidekick about the live stream and recent KICK chat.
 
 **Core interactions:**
-- **"What's going on?"** — TLDR of the stream so far / last N minutes: what the streamer is doing, key moments, what chat is hyped about. Triggered manually, or **auto-greets** when a viewer joins ("Welcome! Quick catch-up: …").
+- **"What's going on?"** — TLDR of the stream so far / last N minutes: what the streamer is doing, key moments, what chat is hyped about.
 - **"Who is this streamer?"** — first-time-viewer primer: who they are, what they stream, channel lore/running jokes.
 - **"Why is chat spamming X?"** — explains the current moment/emote/inside joke.
 - **Answered-question recall** — if the streamer already covered it, the bot says so: *"He answered this 3 min ago — 800 DPI, 0.8 sens."*
@@ -61,7 +61,7 @@ The streamer's only dedicated interface — mid-game, hands on keyboard, nothing
 - Ask: *"What's chat been saying the last 10 minutes?"* / *"What's the vibe?"* / *"Any questions I should answer?"* / *"Who's new today?"*
 - Agent answers out loud with real, expressive turn-taking voice — powered by the same insight engine as the viewer bot.
 
-Same brain, second interface. Pitch line: *"Viewers get a widget; the streamer gets a voice. Nobody gets a dashboard."*
+Same brain, second interface. Pitch line: *"Viewers get a chat; the streamer gets a voice. Nobody gets a dashboard."*
 
 **ElevenLabs architecture:**
 
@@ -75,9 +75,9 @@ Same brain, second interface. Pitch line: *"Viewers get a widget; the streamer g
 **♻️ Overlap with the main solution — read this if you're building the copilot/insight engine:**
 
 - **The insight API is the shared contract.** The voice agent's client tools (`get_chat_vibe`, `get_recent_questions`, `get_trending`, `get_new_chatters`, `get_stream_context`, `get_answered_questions`) are the *same* functions the viewer copilot needs. Build them once as Next.js API routes on top of the insight engine; both interfaces consume them. Agree on names/shapes early — changing a tool name later means touching the ElevenLabs agent config too.
-- **The viewer widget's tool-call display should show these exact tool names.** Then the "mocked" tool calls in the UI are the real contract the voice agent uses — one story across both demos, and judges see the same architecture twice.
+- **The viewer chat's tool-call display should show these exact tool names.** Then the "mocked" tool calls in the UI are the real contract the voice agent uses — one story across both demos, and judges see the same architecture twice.
 - **The answered-questions store is shared state.** `!answered` (main solution) must be readable by the voice agent ("any questions I should answer?" → skips answered ones).
-- **Optional cheap win:** ElevenLabs TTS can also voice the viewer copilot's catch-up TLDR ("🔊 listen instead") — same API key, ~10 lines.
+- **Optional cheap win:** ElevenLabs TTS can also voice the viewer chat's catch-up TLDR ("🔊 listen instead") — same API key, ~10 lines.
 
 ---
 
@@ -104,7 +104,7 @@ Same brain, second interface. Pitch line: *"Viewers get a widget; the streamer g
 ┌───────▼──────┐ ┌─────▼────────┐ ┌───▼───────────┐
 │ Viewer       │ │ Bot digest   │ │ Voice Agent   │
 │ Copilot      │ │ posts into   │ │ (phone PTT +  │
-│ widget       │ │ chat +       │ │  TTS reply)   │
+│ chat         │ │ chat +       │ │  TTS reply)   │
 │              │ │ !answered    │ │               │
 └──────────────┘ └──────────────┘ └───────────────┘
 ```
@@ -121,8 +121,8 @@ Same brain, second interface. Pitch line: *"Viewers get a widget; the streamer g
 
 ## Demo script (~2 min)
 
-1. **Cold open — the problem (15s):** mocked Kick stream page, chat scrolling fast. "You just joined. What's going on? Who is this? Chat's spamming an emote you don't get."
-2. **Viewer copilot (30s):** click the widget → "what's going on?" → tool calls stream in → TLDR appears. Then "who's the streamer?" → primer. Then trigger "new viewer joins" → auto-greet.
+1. **Cold open — the problem (15s):** open the authenticated viewer chat. "You just joined. What's going on? Who is this? Chat's spamming an emote you don't get."
+2. **Viewer copilot (30s):** ask "what's going on?" → tool calls stream in → TLDR appears. Then ask "who's the streamer?" → primer, followed by "why is chat spamming?" → current-moment context.
 3. **Streamer nudge (30s):** hit "question flood" — 8 viewers ask about sensitivity in different words → Sidekick posts into chat: *"📢 8 people have asked about your sensitivity."* Streamer "answers on stream", mod types `!answered`.
 4. **The loop (20s):** a new viewer asks the same question → bot: *"he just answered this — 800 DPI."* Point at it: **that's the feedback loop.**
 5. **Wildcard — voice (25s):** pull out phone, hold PTT: "what's the vibe in chat?" → agent speaks: *"Chat's hyped — messages up 3x, KEKW trending, two questions worth answering."*
@@ -135,10 +135,10 @@ Same brain, second interface. Pitch line: *"Viewers get a widget; the streamer g
 
 | # | Task | Est | Owner |
 |---|---|---|---|
-| 1 | Scaffold Next.js app, layout: stream page (video placeholder + chat column), routes for `/` (viewer) and `/voice` (phone) | 45m | |
+| 1 | Scaffold Next.js app with authenticated viewer chat at `/chat`, `/` redirect, and `/voice` phone route | 45m | |
 | 2 | Mock chat engine: scripted timeline of Kick-shaped events, demo control panel (intensity, hype spike, question flood, new-viewer join) | 60m | |
 | 3 | Insight engine: word/emote frequency buckets, question detection + clustering, vibe classifier, chatter tracking, answered-question store | 75m | |
-| 4 | Viewer copilot widget: chat UI, tool-call rendering, scripted/LLM responses, auto-greet | 75m | |
+| 4 | Viewer copilot chat: full-page chat UI, tool-call rendering, scripted/LLM responses | 75m | |
 | 5 | Bot digest posts into chat + `!answered` command handling | 30m | |
 | 6 | Voice agent: configure ElevenLabs agent (prompt + client tools), `/voice` page with `@elevenlabs/react`, tool handlers → insight API | 60m | |
 | 7 | Polish pass: Kick dark theme (green `#53FC18` accent), demo dry-run, fix the demo path only | 45m | |
@@ -147,7 +147,7 @@ Same brain, second interface. Pitch line: *"Viewers get a widget; the streamer g
 **Rules:**
 - Push to `main` (or short-lived branches, merged fast) — remember: only committed code can be demoed.
 - Demo path is sacred: when time runs low, cut features, never the demo script.
-- Don't build settings/auth/persistence — this is a prototype on mock data, the brief explicitly allows it.
+- Don't build settings or extra persistence — this is a prototype on mock data, and the brief explicitly allows it.
 
 ---
 
@@ -157,4 +157,4 @@ Same brain, second interface. Pitch line: *"Viewers get a widget; the streamer g
 - **Creativity & Innovation (25%)** — the middleman framing (one agent, two masters), tool-call transparency, voice interface.
 - **Technical Execution (20%)** — real-time pipeline, clustering, visible tool calls, exact Kick payload shapes.
 - **Presentation & Demo (10%)** — follow the 2-min script; the loop moment (step 4) is the money shot.
-- **UX (10%)** — Kick-native dark theme, widget feels like a real third-party embed.
+- **UX (10%)** — Kick-native dark theme; viewer chat is clear and responsive.

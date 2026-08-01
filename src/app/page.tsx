@@ -1,9 +1,5 @@
-import { StreamExperience } from "@/components/sidekick/stream-experience";
-
-export const metadata = {
-  title: "OrbitFPS — KICK (Sidekick demo)",
-};
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return <StreamExperience />;
+  redirect("/chat");
 }
