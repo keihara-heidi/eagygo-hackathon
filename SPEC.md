@@ -13,9 +13,9 @@ An AI agent that sits between the streamer and their chat: viewers ask it what's
 
 | Brief requirement | How Sidekick answers it |
 |---|---|
-| Help streamers understand chat | Live insight panel: clustered questions, trending words/emotes per interval, vibe, who's showing up |
+| Help streamers understand chat | Chat-native nudges (bot posts clustered questions into chat) + voice agent for vibe/trends on demand |
 | Give viewers a way to participate beyond typing | Personal AI copilot widget — ask anything about the stream/chat without shouting into the scroll |
-| **Genuine feedback loop** | Viewer questions cluster → streamer sees & answers on stream → marks "answered" → bot relays the answer to every future asker. Both sides feed each other continuously. |
+| **Genuine feedback loop** | Viewer questions cluster → Sidekick posts a digest into chat → streamer answers on stream → `!answered` → bot relays the answer to every future asker. Both sides feed each other continuously. |
 | Explainable in <2 min | "New viewer joins mid-stream, asks 'what's going on?', gets a TLDR. Streamer asks 'what's chat saying?', gets an answer. That's it." |
 | Mock data reflecting real Kick data | All mock events use the exact `chat.message.sent` / webhook payload shapes from the Kick Public API docs |
 
@@ -45,24 +45,23 @@ Every bot response renders its (mocked) tool calls inline before the answer, age
 
 Mocked but shaped like real calls against Kick API endpoints (`GET /livestreams`, `GET /channels`, chat history). Makes the agent feel engineered, not a GPT wrapper.
 
-### 2. Streamer Insight Panel (insights side)
+### 2. Chat-native streamer nudges (insights side — deliberately no dashboard)
 
-A dashboard view the streamer keeps on a second monitor.
+We keep the streamer side minimal: no separate dashboard. Insight arrives where the streamer already looks — the chat itself.
 
-- **Question radar (hero feature):** similar questions from chat get clustered and counted — *"❓ asked 8× in last 5 min: 'what's your sensitivity?'"*. Sorted by frequency × recency. One-click **"Answered ✓"** button → feeds the viewer bot (closes the loop).
-- **Trending now:** most-occurring words & emotes per rolling interval (e.g. 60s / 5min buckets), with deltas ("'clip it' ↑ 340%").
-- **Vibe strip:** coarse mood of chat over time (hype / chill / tilted / dead) derived from message velocity + emote mix.
-- **Who's showing up:** first-time chatters vs regulars vs subs/mods in current window; notable arrivals ("a 12-month sub just chatted for the first time today").
+- **Question digest (hero feature):** when similar questions cluster past a threshold, Sidekick posts into chat as a bot message — *"📢 8 people have asked about your sensitivity in the last 5 min"*. (Mirrors the real `POST /public/v1/chat` bot capability.)
+- **Close the loop with a command:** streamer answers on stream, then streamer/mod types `!answered` (or replies to the digest). From then on the viewer bot relays the answer to anyone who asks again.
+- Everything else insight-wise (vibe, trends, who's showing up) lives in the **voice agent** — on demand, zero screen real estate.
 
 ### 3. Wildcard — Voice Agent for the streamer
 
-Streamer is mid-game, can't read a dashboard. From their phone:
+The streamer's only dedicated interface — mid-game, hands on keyboard, nothing to read. From their phone:
 
 - Push-to-talk button (phone browser page, Web Speech API).
-- Ask: *"What's chat been saying the last 10 minutes?"* / *"What's the vibe?"* / *"Any questions I should answer?"*
-- Agent speaks the answer back through the speaker (TTS), powered by the same insight engine as the dashboard.
+- Ask: *"What's chat been saying the last 10 minutes?"* / *"What's the vibe?"* / *"Any questions I should answer?"* / *"Who's new today?"*
+- Agent speaks the answer back through the speaker (TTS), powered by the same insight engine as the viewer bot.
 
-Same brain, third interface. Pitch line: *"The dashboard is for their monitor; the voice agent is for when they can't look at it."*
+Same brain, second interface. Pitch line: *"Viewers get a widget; the streamer gets a voice. Nobody gets a dashboard."*
 
 ---
 
@@ -87,9 +86,10 @@ Same brain, third interface. Pitch line: *"The dashboard is for their monitor; t
 └───────┬──────────────┬──────────────┬──────────────┘
         │              │              │
 ┌───────▼──────┐ ┌─────▼────────┐ ┌───▼───────────┐
-│ Viewer       │ │ Streamer     │ │ Voice Agent   │
-│ Copilot      │ │ Insight      │ │ (phone PTT +  │
-│ widget       │ │ Panel        │ │  TTS reply)   │
+│ Viewer       │ │ Bot digest   │ │ Voice Agent   │
+│ Copilot      │ │ posts into   │ │ (phone PTT +  │
+│ widget       │ │ chat +       │ │  TTS reply)   │
+│              │ │ !answered    │ │               │
 └──────────────┘ └──────────────┘ └───────────────┘
 ```
 
@@ -107,8 +107,8 @@ Same brain, third interface. Pitch line: *"The dashboard is for their monitor; t
 
 1. **Cold open — the problem (15s):** mocked Kick stream page, chat scrolling fast. "You just joined. What's going on? Who is this? Chat's spamming an emote you don't get."
 2. **Viewer copilot (30s):** click the widget → "what's going on?" → tool calls stream in → TLDR appears. Then "who's the streamer?" → primer. Then trigger "new viewer joins" → auto-greet.
-3. **Streamer panel (30s):** hit "question flood" — 8 viewers ask about sensitivity in different words → question radar clusters it, counter climbs. Streamer "answers on stream", clicks **Answered ✓**.
-4. **The loop (20s):** back on viewer side, a new viewer asks the same question → bot: *"he just answered this — 800 DPI."* Point at it: **that's the feedback loop.**
+3. **Streamer nudge (30s):** hit "question flood" — 8 viewers ask about sensitivity in different words → Sidekick posts into chat: *"📢 8 people have asked about your sensitivity."* Streamer "answers on stream", mod types `!answered`.
+4. **The loop (20s):** a new viewer asks the same question → bot: *"he just answered this — 800 DPI."* Point at it: **that's the feedback loop.**
 5. **Wildcard — voice (25s):** pull out phone, hold PTT: "what's the vibe in chat?" → agent speaks: *"Chat's hyped — messages up 3x, KEKW trending, two questions worth answering."*
 
 ---
@@ -119,12 +119,12 @@ Same brain, third interface. Pitch line: *"The dashboard is for their monitor; t
 
 | # | Task | Est | Owner |
 |---|---|---|---|
-| 1 | Scaffold Next.js app, layout: stream page (video placeholder + chat column), routes for `/` (viewer), `/dashboard` (streamer), `/voice` (phone) | 45m | |
+| 1 | Scaffold Next.js app, layout: stream page (video placeholder + chat column), routes for `/` (viewer) and `/voice` (phone) | 45m | |
 | 2 | Mock chat engine: scripted timeline of Kick-shaped events, demo control panel (intensity, hype spike, question flood, new-viewer join) | 60m | |
 | 3 | Insight engine: word/emote frequency buckets, question detection + clustering, vibe classifier, chatter tracking, answered-question store | 75m | |
 | 4 | Viewer copilot widget: chat UI, tool-call rendering, scripted/LLM responses, auto-greet | 75m | |
-| 5 | Streamer insight panel: question radar + Answered button, trending words/emotes, vibe strip, who's-showing-up | 75m | |
-| 6 | Voice agent page: PTT, speech-to-text, route intents to insight engine, TTS response | 45m | |
+| 5 | Bot digest posts into chat + `!answered` command handling | 30m | |
+| 6 | Voice agent page: PTT, speech-to-text, route intents to insight engine, TTS response | 60m | |
 | 7 | Polish pass: Kick dark theme (green `#53FC18` accent), demo dry-run, fix the demo path only | 45m | |
 | 8 | Presentation deck/pages + email submission | 45m | |
 
