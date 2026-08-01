@@ -1,9 +1,14 @@
+import { redirect } from "next/navigation";
+
+import { Button } from "@/components/ui/button";
 import {
   TypographyH1,
   TypographyLead,
   TypographyMuted,
   TypographySmall,
 } from "@/components/ui/typography";
+
+import { getKickSession } from "@/lib/auth/session";
 
 const stack = [
   "Next.js",
@@ -13,7 +18,10 @@ const stack = [
   "shadcn/ui",
 ];
 
-export default function Home() {
+export default async function Home() {
+  const session = await getKickSession();
+  if (!session) redirect("/login");
+
   return (
     <main className="relative isolate flex min-h-screen overflow-hidden px-6 py-8 sm:px-10 lg:px-16 lg:py-16">
       <div
@@ -22,9 +30,21 @@ export default function Home() {
       />
 
       <section className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-6xl flex-col justify-between gap-16 rounded-2xl border bg-card/80 p-8 shadow-2xl shadow-black/40 backdrop-blur-sm sm:p-12 lg:min-h-[calc(100vh-8rem)] lg:p-16">
-        <header className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
-          <span className="size-2.5 bg-primary" />
-          Easygo Mini Hackathon · Challenge 02
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.18em] text-primary">
+            <span className="size-2.5 bg-primary" />
+            Easygo Mini Hackathon · Challenge 02
+          </div>
+          <div className="flex items-center gap-3">
+            <TypographySmall className="text-muted-foreground">
+              @{session.user.name}
+            </TypographySmall>
+            <form action="/api/auth/logout" method="post">
+              <Button size="sm" type="submit" variant="outline">
+                Log out
+              </Button>
+            </form>
+          </div>
         </header>
 
         <div className="max-w-4xl">
