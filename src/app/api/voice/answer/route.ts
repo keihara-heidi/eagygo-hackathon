@@ -14,6 +14,7 @@ const RECAP_PATTERN = /recap|catch me up|catch up|what did i miss|missed/i;
 
 const PROMPT_LEAK_PATTERN =
   /\b(?:the user (?:wants|asked)|i need to|system prompt|instructions?|under \d+ words|never (?:add|speak)|let me (?:compress|rewrite)|output only)\b/i;
+const NUMBERED_LIST_PATTERN = /(?:^|\s)\d+\.\s/;
 
 /**
  * Keeps model reasoning and prompt echoes away from TTS, then trims only at a
@@ -28,7 +29,16 @@ function cleanSpokenAnswer(text: string, question: string): string | null {
     .filter(Boolean);
   const candidate =
     [...paragraphs].reverse().find((part) => !PROMPT_LEAK_PATTERN.test(part)) ?? "";
-  if (!candidate || PROMPT_LEAK_PATTERN.test(candidate)) return null;
+  const quoteCount = (candidate.match(/"/g) ?? []).length;
+  if (
+    !candidate ||
+    PROMPT_LEAK_PATTERN.test(candidate) ||
+    NUMBERED_LIST_PATTERN.test(candidate) ||
+    quoteCount % 2 !== 0 ||
+    !/[.!?]["']?$/.test(candidate)
+  ) {
+    return null;
+  }
 
   const words = candidate.split(/\s+/);
   if (words.length <= maxWords) return candidate;
