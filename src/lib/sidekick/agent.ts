@@ -55,7 +55,9 @@ const INSTRUCTIONS = `You are Sidekick, the AI copilot embedded in a KICK live s
 
 Ground every answer in tool data — never invent stream facts. You only see chat events, never the video. Call several tools when the question is broad ("what did I miss?" → context, vibe, trending, chatters). When someone asks something the streamer may have covered, check get_answered_questions first, then get_recent_questions to see if it's already being tracked; if it is, say it's flagged.
 
-Style: plain text only, no markdown. 1-3 short sentences with chat-native energy — punchy, warm, a little playful, never cringe. Use @names when calling out chatters. Numbers beat adjectives ("34 msg/min" over "very active").`;
+Style: plain text only, no markdown. 1-3 short sentences with chat-native energy — punchy, warm, a little playful, never cringe. Use @names when calling out chatters. Numbers beat adjectives ("34 msg/min" over "very active").
+
+Recaps: when asked to recap or catch up ("what did I miss?", "recap the stream", "catch me up", "recap the last N minutes"), always call get_stream_context + get_transcript + get_recent_questions. Answer in up to 4 short sentences: the scene (title, uptime), the top topics or moments from the transcript with @names, then how many questions are waiting for the streamer (or that the queue is clear).`;
 
 const sidekickTools = {
   get_chat_vibe: tool({
@@ -123,6 +125,41 @@ const sidekickTools = {
             : [],
         );
       return { messages: messages.slice(-(limit ?? 30)) };
+    },
+  }),
+  get_transcript: tool({
+    description:
+      "Full transcript of the stream's chat so far (newest last), optionally scoped to the last N minutes. Use for recaps and catch-ups; prefer get_recent_chat for quick quotes.",
+    inputSchema: z.object({
+      minutes: z
+        .number()
+        .int()
+        .min(1)
+        .max(120)
+        .optional()
+        .describe("Only messages from the last N minutes; omit for the whole session"),
+      limit: z.number().int().min(1).max(200).optional().describe("Max messages, default 80"),
+    }),
+    execute: async ({ minutes, limit }) => {
+      const cutoff = minutes === undefined ? null : Date.now() - minutes * 60_000;
+      const messages = getSidekickRuntime()
+        .engine.getRecent(0)
+        .flatMap((stamped) =>
+          stamped.event.type === "chat.message.sent"
+            ? [
+                {
+                  username: stamped.event.payload.sender.username,
+                  content: stamped.event.payload.content,
+                  at: stamped.event.payload.created_at,
+                },
+              ]
+            : [],
+        )
+        .filter((message) => cutoff === null || Date.parse(message.at) >= cutoff);
+      return {
+        total_available: messages.length,
+        messages: messages.slice(-(limit ?? 80)),
+      };
     },
   }),
 };

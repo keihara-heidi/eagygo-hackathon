@@ -279,6 +279,66 @@ function streamerWhoIsNew(insights: InsightEngine): CopilotResponse {
   };
 }
 
+function streamerRecap(insights: InsightEngine): CopilotResponse {
+  const vibe = insights.vibe();
+  const trending = insights.trending();
+  const pending = insights.questions().filter((cluster) => !cluster.answered);
+  const top = pending[0];
+  const chatters = insights.chatters();
+
+  const words = trending.words
+    .map((entry) => entry.word)
+    .filter((word) => word.length >= 3 && isSpeakableWord(word))
+    .slice(0, 3);
+
+  const parts: string[] = [moodLine(vibe)];
+  parts.push(
+    words.length > 0
+      ? `Chat's mostly on about ${words.length === 1 ? words[0] : `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`}.`
+      : "No single topic dominating — just general chatter.",
+  );
+  parts.push(
+    top
+      ? `${pending.length === 1 ? "One question cluster" : `${pending.length} question clusters`} waiting — most asked: ${maskSpeech(top.representative)} (${top.count}x). Say answered once you've covered it.`
+      : "No pending questions — the queue is clear.",
+  );
+  const speakableFirstTimers = chatters.first_timers.filter(isSpeakableWord);
+  if (speakableFirstTimers.length > 0) {
+    parts.push(
+      `First-timers worth a shoutout: ${speakableFirstTimers.slice(0, 3).join(", ")}.`,
+    );
+  }
+  const lastNotable = chatters.notable[chatters.notable.length - 1];
+  if (lastNotable) parts.push(maskSpeech(lastNotable) + ".");
+
+  return {
+    intent: "streamer_recap",
+    answer: parts.join(" "),
+    tool_calls: [
+      {
+        tool: "get_chat_vibe",
+        request: "GET /api/insights/vibe",
+        summary: `${vibe.vibe} · ${vibe.messages_per_minute} msg/min`,
+      },
+      {
+        tool: "get_trending",
+        request: "GET /api/insights/trending",
+        summary: words.length > 0 ? `topics: ${words.join(", ")}` : "no dominant topic",
+      },
+      {
+        tool: "get_recent_questions",
+        request: "GET /api/insights/questions",
+        summary: top ? `${pending.length} pending · top asked ${top.count}x` : "queue empty",
+      },
+      {
+        tool: "get_new_chatters",
+        request: "GET /api/insights/chatters",
+        summary: `${chatters.active_last_10m} active · ${chatters.first_timers.length} first-timers`,
+      },
+    ],
+  };
+}
+
 function streamerFallback(): CopilotResponse {
   return {
     intent: "help",
@@ -312,6 +372,9 @@ export async function POST(request: Request) {
   const insights = getSidekickRuntime().insights;
 
   if (audience === "streamer") {
+    if (/recap|catch (me )?up|what did i miss|summar|brief me|fill me in/i.test(question)) {
+      return NextResponse.json(streamerRecap(insights));
+    }
     if (/question|should i answer|what.*want to know|asking|queue/i.test(question)) {
       return NextResponse.json(streamerQuestions(insights));
     }
@@ -327,7 +390,7 @@ export async function POST(request: Request) {
     return NextResponse.json(question.length > 3 ? streamerTopics(insights) : streamerFallback());
   }
 
-  if (auto || /what('| i)?s (going on|happening)|catch me up|did i miss/i.test(question)) {
+  if (auto || /what('| i)?s (going on|happening)|catch me up|did i miss|recap|summar/i.test(question)) {
     return NextResponse.json(catchup(insights, auto ? viewer : null));
   }
   if (/who('| i)?s? (is )?(this|the streamer|he|that)|about the streamer/i.test(question)) {
