@@ -230,14 +230,34 @@ export function ViewerChat({ username }: ViewerChatProps) {
   const viewerName = username ?? "viewer";
   const streamContext = useQuery(streamContextQueryOptions);
   const { stream: connectedStream } = useConnectedKickStream();
+  const broadcasterUserId = connectedStream?.broadcasterUserId;
+  const streamEndpoint = useMemo(
+    () =>
+      broadcasterUserId === undefined
+        ? "/api/stream"
+        : `/api/stream?broadcasterUserId=${broadcasterUserId}`,
+    [broadcasterUserId],
+  );
   const { messages, sendMessage, isPending, isStreaming, isError } = useSidekickAgentChat();
-  const { events: kickEvents, connectionState } = useKickStreamEvents({ maxEvents: 80 });
+  const { events: kickEvents, connectionState } = useKickStreamEvents({
+    endpoint: streamEndpoint,
+    maxEvents: 80,
+  });
 
   const streamer = connectedStream?.slug ?? streamContext.data?.streamer;
   const hasMessages = messages.length > 0;
+  const visibleKickEvents = useMemo(
+    () =>
+      broadcasterUserId === undefined
+        ? kickEvents
+        : kickEvents.filter(
+            ({ event }) => event.payload.broadcaster.user_id === broadcasterUserId,
+          ),
+    [broadcasterUserId, kickEvents],
+  );
   const kickActivities = useMemo(
-    () => kickEvents.slice(-4).reverse().map(toKickActivity),
-    [kickEvents],
+    () => visibleKickEvents.slice(-4).reverse().map(toKickActivity),
+    [visibleKickEvents],
   );
 
   return (
@@ -282,7 +302,7 @@ export function ViewerChat({ username }: ViewerChatProps) {
       <LiveKickActivityBar
         activities={kickActivities}
         connectionState={connectionState}
-        eventCount={kickEvents.length}
+        eventCount={visibleKickEvents.length}
       />
 
       <main className="min-h-0 flex-1" aria-label="Sidekick conversation">
