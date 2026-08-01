@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { ChatComposer } from "@/components/chat-composer";
+import { KickStreamConnector } from "@/components/kick-stream-connector";
 import { Button } from "@/components/ui/button";
 import {
   Message,
@@ -34,6 +35,7 @@ import {
   useKickStreamEvents,
   type KickStreamConnectionState,
 } from "@/hooks/use-kick-stream-events";
+import { useConnectedKickStream } from "@/hooks/use-connected-kick-stream";
 import { useSidekickAgentChat } from "@/hooks/use-sidekick-agent-chat";
 import type { StampedEvent } from "@/lib/chat-engine/types";
 import { streamContextQueryOptions } from "@/lib/viewer-chat-api";
@@ -233,10 +235,11 @@ function LiveKickActivityBar({
 
 export function ViewerChat({ username }: ViewerChatProps) {
   const streamContext = useQuery(streamContextQueryOptions);
+  const { stream: connectedStream } = useConnectedKickStream();
   const { messages, sendMessage, isPending, isError } = useSidekickAgentChat();
   const { events: kickEvents, connectionState } = useKickStreamEvents({ maxEvents: 80 });
 
-  const streamer = streamContext.data?.streamer;
+  const streamer = connectedStream?.slug ?? streamContext.data?.streamer;
   const hasMessages = messages.length > 0;
   const kickActivities = useMemo(
     () => kickEvents.slice(-4).reverse().map(toKickActivity),
@@ -274,6 +277,12 @@ export function ViewerChat({ username }: ViewerChatProps) {
           </div>
         </div>
       </header>
+
+      <section className="shrink-0 border-b border-border/60 bg-background/75 px-4 py-3 backdrop-blur sm:px-6">
+        <div className="mx-auto w-full max-w-5xl">
+          <KickStreamConnector />
+        </div>
+      </section>
 
       <LiveKickActivityBar
         activities={kickActivities}

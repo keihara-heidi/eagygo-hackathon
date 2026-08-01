@@ -3,6 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Bot, MessageSquare, Radio, Send, Sparkles, Users, Wrench } from "lucide-react";
 
+import { KickStreamConnector } from "@/components/kick-stream-connector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,10 +20,11 @@ import {
   TypographyMuted,
   TypographySmall,
 } from "@/components/ui/typography";
+import { useConnectedKickStream } from "@/hooks/use-connected-kick-stream";
 import { useKickStreamEvents } from "@/hooks/use-kick-stream-events";
 import { useSidekickAgentChat } from "@/hooks/use-sidekick-agent-chat";
 import type { StampedEvent } from "@/lib/chat-engine/types";
-import { STREAM_INFO } from "@/lib/sidekick/personas";
+import { STREAM_INFO, STREAMER } from "@/lib/sidekick/personas";
 
 const MESSAGE_WINDOW_MS = 60_000;
 const INSIGHT_WINDOW_MS = 5 * 60_000;
@@ -291,6 +293,7 @@ async function triggerDemo(scenario: "hype_spike" | "question_flood" | "new_view
 // Streamer-facing control room: this page is intentionally read-only chat +
 // insight cues for the person live on stream, not a viewer copilot surface.
 export default function StreamDashboardPage() {
+  const { stream: connectedStream } = useConnectedKickStream();
   const { events, connectionState } = useKickStreamEvents({ maxEvents: 160 });
   const {
     messages: agentMessages,
@@ -344,6 +347,8 @@ export default function StreamDashboardPage() {
           </Badge>
         </header>
 
+        <KickStreamConnector className="shrink-0 border-primary/20 bg-card/90 shadow-2xl shadow-black/30 backdrop-blur-sm" />
+
         <Card size="sm" className="shrink-0 border-primary/25 bg-card/90 shadow-2xl shadow-black/30 backdrop-blur-sm">
           <CardHeader className="gap-3">
             <div>
@@ -352,7 +357,7 @@ export default function StreamDashboardPage() {
                 Stream insights
               </CardTitle>
               <CardDescription className="text-xs">
-                {STREAM_INFO.viewer_count.toLocaleString()} viewers · {STREAM_INFO.started_minutes_ago}m live
+                @{connectedStream?.slug ?? STREAMER.username} · {STREAM_INFO.viewer_count.toLocaleString()} viewers · {STREAM_INFO.started_minutes_ago}m live
               </CardDescription>
             </div>
             <CardAction className="col-start-1 row-start-auto flex flex-wrap gap-1.5 justify-self-start">
