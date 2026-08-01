@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { isSpeakableWord, maskSpeech } from "@/lib/sidekick/clean-speech";
 import { getSidekickRuntime } from "@/lib/sidekick/runtime";
 import type { InsightEngine } from "@/lib/sidekick/insights";
 import { postVoiceBriefing } from "@/lib/sidekick/voice-briefing";
@@ -158,24 +159,72 @@ function recallOrFlag(insights: InsightEngine, question: string): CopilotRespons
 // Streamer (voice) intents — short, speech-friendly answers
 // ---------------------------------------------------------------------------
 
+/** Qualitative mood line — no statistics, suitable for spoken answers. */
+function moodLine(vibe: ReturnType<InsightEngine["vibe"]>): string {
+  switch (vibe.vibe) {
+    case "hype":
+      return "The mood is electric — chat is absolutely buzzing.";
+    case "tilted":
+      return "The mood is a bit salty right now.";
+    case "dead":
+      return "Chat is pretty quiet at the moment.";
+    default:
+      return "The mood is relaxed and steady.";
+  }
+}
+
 function streamerVibe(insights: InsightEngine): CopilotResponse {
   const vibe = insights.vibe();
-  const trending = insights.trending();
-  const topWord = trending.words[0];
-  const answer = `${vibe.description}${topWord ? ` Chat's big topic right now: ${topWord.word}.` : ""}`;
   return {
     intent: "streamer_vibe",
-    answer,
+    answer: moodLine(vibe),
     tool_calls: [
       {
         tool: "get_chat_vibe",
         request: "GET /api/insights/vibe",
         summary: `${vibe.vibe} · ${vibe.messages_per_minute} msg/min`,
       },
+    ],
+  };
+}
+
+/** "What's chat talking about?" — topics and collective emotion, zero stats. */
+function streamerTopics(insights: InsightEngine): CopilotResponse {
+  const vibe = insights.vibe();
+  const trending = insights.trending();
+  const words = trending.words
+    .map((entry) => entry.word)
+    .filter((word) => word.length >= 3 && isSpeakableWord(word))
+    .slice(0, 3);
+  // Real chat carries emotes we only know by numeric id — don't speak those.
+  const topEmote = trending.emotes.find((emote) => !/^\d+$/.test(emote.name));
+
+  const parts: string[] = [];
+  if (words.length > 0) {
+    parts.push(
+      words.length === 1
+        ? `Chat's mostly on about ${words[0]}.`
+        : `Chat's mostly on about ${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}.`,
+    );
+  } else {
+    parts.push("No single topic dominating — just general chatter.");
+  }
+  if (topEmote) parts.push(`${topEmote.name} is the emote of the moment.`);
+  parts.push(moodLine(vibe));
+
+  return {
+    intent: "streamer_topics",
+    answer: parts.join(" "),
+    tool_calls: [
       {
         tool: "get_trending",
         request: "GET /api/insights/trending",
-        summary: topWord ? `top word ${topWord.word}` : "quiet",
+        summary: words.length > 0 ? `topics: ${words.join(", ")}` : "no dominant topic",
+      },
+      {
+        tool: "get_chat_vibe",
+        request: "GET /api/insights/vibe",
+        summary: vibe.vibe,
       },
     ],
   };
@@ -187,7 +236,7 @@ function streamerQuestions(insights: InsightEngine): CopilotResponse {
   // Fire the viewer-visible 🎙 chat line; never block the spoken answer on it.
   void postVoiceBriefing().catch(() => {});
   const answer = top
-    ? `Yes — ${pending.length === 1 ? "one big one" : `${pending.length} clusters`}. Most asked: ${top.representative} — ${top.count} people want to know. I've flagged it in chat; say answered when you've covered it.`
+    ? `Yes — ${pending.length === 1 ? "one big one" : `${pending.length} clusters`}. Most asked: ${maskSpeech(top.representative)} — ${top.count} people want to know. I've flagged it in chat; say answered when you've covered it.`
     : "Nothing pressing — no repeated questions in the queue right now.";
   return {
     intent: "streamer_questions",
@@ -206,15 +255,17 @@ function streamerWhoIsNew(insights: InsightEngine): CopilotResponse {
   const chatters = insights.chatters();
   const parts: string[] = [];
   parts.push(`${chatters.active_last_10m} people chatting in the last ten minutes.`);
-  if (chatters.first_timers.length > 0) {
+  const speakableFirstTimers = chatters.first_timers.filter(isSpeakableWord);
+  if (speakableFirstTimers.length > 0) {
     parts.push(
-      `First-timers: ${chatters.first_timers.slice(0, 3).join(", ")}${chatters.first_timers.length > 3 ? ` and ${chatters.first_timers.length - 3} more` : ""} — worth a shoutout.`,
+      `First-timers: ${speakableFirstTimers.slice(0, 3).join(", ")}${speakableFirstTimers.length > 3 ? ` and ${speakableFirstTimers.length - 3} more` : ""} — worth a shoutout.`,
     );
   }
   if (chatters.recent_followers.length > 0) {
     parts.push(`${chatters.recent_followers.length} new followers recently.`);
   }
-  if (chatters.notable.length > 0) parts.push(chatters.notable[chatters.notable.length - 1] + ".");
+  const lastNotable = chatters.notable[chatters.notable.length - 1];
+  if (lastNotable) parts.push(maskSpeech(lastNotable) + ".");
   return {
     intent: "streamer_whos_new",
     answer: parts.join(" "),
@@ -264,16 +315,16 @@ export async function POST(request: Request) {
     if (/question|should i answer|what.*want to know|asking|queue/i.test(question)) {
       return NextResponse.json(streamerQuestions(insights));
     }
-    if (/vibe|mood|feeling|energy|chat (saying|doing|like)|how('| i)?s chat/i.test(question)) {
+    if (/talking about|saying|topic|trending|going on|happening|on about/i.test(question)) {
+      return NextResponse.json(streamerTopics(insights));
+    }
+    if (/vibe|mood|feeling|energy|how('| i)?s chat/i.test(question)) {
       return NextResponse.json(streamerVibe(insights));
     }
     if (/who('| i)?s new|new (viewer|chatter|follower)|who (joined|showed|came)/i.test(question)) {
       return NextResponse.json(streamerWhoIsNew(insights));
     }
-    if (/trending|talking about|topic|going on|happening/i.test(question)) {
-      return NextResponse.json(streamerVibe(insights));
-    }
-    return NextResponse.json(question.length > 3 ? streamerVibe(insights) : streamerFallback());
+    return NextResponse.json(question.length > 3 ? streamerTopics(insights) : streamerFallback());
   }
 
   if (auto || /what('| i)?s (going on|happening)|catch me up|did i miss/i.test(question)) {
