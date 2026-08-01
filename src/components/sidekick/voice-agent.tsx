@@ -5,6 +5,7 @@ import {
   Eye,
   Flame,
   MessageCircleQuestion,
+  RadioTower,
   RefreshCcw,
   UserPlus,
 } from "lucide-react";
@@ -13,6 +14,7 @@ import { apiClient } from "@/lib/api-client";
 import { VOICE_PRESET } from "@/lib/sidekick/voice-preset";
 import { cn } from "@/lib/utils";
 
+import { useRealKickChat } from "./use-real-kick-chat";
 import { useVoiceChatFeed, VoiceChatOverlay } from "./voice-chat-column";
 
 const AVATAR = `https://api.dicebear.com/9.x/thumbs/svg?seed=${VOICE_PRESET.streamer}`;
@@ -330,6 +332,30 @@ function DemoTriggers() {
 export function VoiceAgent() {
   const events = useVoiceChatFeed();
   const { phase, haptic } = useVoicePipeline();
+  const realChat = useRealKickChat();
+
+  // Auto-connect to a real channel via ?chatroom=<id>&channel=<slug>.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const chatroom = params.get("chatroom");
+    if (chatroom) realChat.connect(chatroom, params.get("channel") ?? "kick");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggleRealChat = () => {
+    if (realChat.status === "live" || realChat.status === "connecting") {
+      realChat.disconnect();
+      return;
+    }
+    const chatroom = window.prompt(
+      "Kick chatroom ID (open kick.com/api/v2/channels/<name> in a tab → chatroom.id)",
+      "5389830", // deenthegreat
+    );
+    if (!chatroom?.trim()) return;
+    const channelLabel =
+      window.prompt("Channel name (for display)", "deenthegreat") ?? "kick";
+    realChat.connect(chatroom.trim(), channelLabel);
+  };
 
   return (
     <div className="flex h-screen items-center justify-center bg-neutral-950">
@@ -348,7 +374,11 @@ export function VoiceAgent() {
             />
             <div className="leading-tight">
               <p className="text-[11px] font-bold text-white">{VOICE_PRESET.streamer}</p>
-              <p className="max-w-40 truncate text-[9px] text-white/60">{VOICE_PRESET.title}</p>
+              <p className="max-w-40 truncate text-[9px] text-white/60">
+                {realChat.status === "live"
+                  ? `real chat · ${realChat.channel}`
+                  : VOICE_PRESET.title}
+              </p>
             </div>
           </div>
           <div className="flex flex-col items-end gap-1.5">
@@ -360,7 +390,27 @@ export function VoiceAgent() {
                 <Eye className="size-2.5" /> {VOICE_PRESET.viewers.toLocaleString()}
               </span>
             </div>
-            <DemoTriggers />
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                title={
+                  realChat.status === "live"
+                    ? `Streaming real chat from ${realChat.channel} — click to fall back to mock`
+                    : "Connect a real Kick channel's chat"
+                }
+                onClick={toggleRealChat}
+                className={cn(
+                  "rounded-full bg-black/30 p-1.5 transition-colors",
+                  realChat.status === "live" && "text-primary",
+                  realChat.status === "connecting" && "animate-pulse text-amber-400",
+                  realChat.status === "failed" && "text-destructive",
+                  realChat.status === "off" && "text-white/40 hover:text-white",
+                )}
+              >
+                <RadioTower className="size-3.5" />
+              </button>
+              <DemoTriggers />
+            </div>
           </div>
         </div>
 
