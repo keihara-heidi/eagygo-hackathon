@@ -349,11 +349,11 @@ export function VoiceAgent() {
     }
     const chatroom = window.prompt(
       "Kick chatroom ID (open kick.com/api/v2/channels/<name> in a tab → chatroom.id)",
-      "15250312", // theburntpeanut
+      "18490228", // kaneljoseph
     );
     if (!chatroom?.trim()) return;
     const channelLabel =
-      window.prompt("Channel name (for display)", "theburntpeanut") ?? "kick";
+      window.prompt("Channel name (for display)", "kaneljoseph") ?? "kick";
     realChat.connect(chatroom.trim(), channelLabel);
   };
 
